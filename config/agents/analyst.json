@@ -1,0 +1,17 @@
+{
+    "model_type": "gemini",
+    "model_name": "gemini-2.0-flash-exp",
+    "temperature": 0.3,
+    "max_tokens": 512,
+    "json_mode": true,
+    "tool_config": {
+        "info_retriever": {
+            "type": "info",
+            "config_path": "config/tools/info_database/{dataset}.json"
+        },
+        "interaction_retriever": {
+            "type": "interaction",
+            "config_path": "config/tools/interaction/{dataset}.json"
+        }
+    }
+}

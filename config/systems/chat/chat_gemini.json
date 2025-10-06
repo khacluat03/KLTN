@@ -1,0 +1,26 @@
+{
+    "supported_tasks": [
+        "chat"
+    ],
+    "manager_action": "config/agents/manager_action_gemini.json",
+    "manager_thought": "config/agents/manager_thought_gemini.json",
+    "interpreter": "config/agents/interpreter.json",
+    "searcher": "config/agents/searcher.json",
+    "agent_prompt": "config/prompts/old_system_prompt/react_chat.json",
+    "data_prompt": "config/prompts/data_prompt/{task}.json",
+    "task_agent_prompt": "config/prompts/task_agent_prompt/searcher_{task}.json",
+    "tools": {
+        "summarize": {
+            "model_type": "gemini",
+            "model_name": "gemini-2.0-flash-exp",
+            "temperature": 0.7,
+            "max_tokens": 1024
+        },
+        "explain": {
+            "model_type": "gemini", 
+            "model_name": "gemini-2.0-flash-exp",
+            "temperature": 0.7,
+            "max_tokens": 1024
+        }
+    }
+}
