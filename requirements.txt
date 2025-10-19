@@ -112,13 +112,13 @@ tenacity==8.2.2
 termcolor==2.5.0
 threadpoolctl==3.6.0
 tiktoken==0.11.0
-tokenizers==0.15.2
+tokenizers>=0.22.0
 toml==0.10.2
 torch==2.8.0
 torchmetrics==1.8.2
 tornado==6.5.2
 tqdm==4.67.1
-transformers==4.36.2
+transformers>=4.56.1
 trl==0.23.1
 typing-inspect==0.9.0
 typing-inspection==0.4.2
