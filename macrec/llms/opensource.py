@@ -1,5 +1,4 @@
 import json
-from jsonformer import Jsonformer
 from loguru import logger
 from typing import Any
 from transformers import pipeline
@@ -35,6 +34,19 @@ class MyJsonFormer:
         Returns:
             `str`: The formatted output. Must be a valid JSON string.
         """
+        # Lazily import jsonformer after ensuring compatibility with transformers>=4.49
+        # jsonformer<=0.12.0 imports LogitsWarper, which was removed; alias it to LogitsProcessor
+        try:
+            import transformers as _transformers
+            from transformers import LogitsProcessor as _LogitsProcessor  # type: ignore
+            if not hasattr(_transformers, "LogitsWarper"):
+                setattr(_transformers, "LogitsWarper", _LogitsProcessor)
+        except Exception:
+            # If aliasing fails, proceed; import may still succeed on newer jsonformer
+            pass
+
+        from jsonformer import Jsonformer
+
         model = Jsonformer(
             model=self.pipeline.model,
             tokenizer=self.pipeline.tokenizer,
