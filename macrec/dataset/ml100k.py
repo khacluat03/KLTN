@@ -13,18 +13,28 @@ def download_data(dir: str):
     os.makedirs(raw_path, exist_ok=True)
     if not os.path.exists(os.path.join(raw_path, 'ml-100k.zip')):
         logger.info('Downloading ml-100k dataset into ' + raw_path)
-        subprocess.call(
-            f'cd {raw_path} && curl -O http://files.grouplens.org/datasets/movielens/ml-100k.zip', shell=True
-        )
+        import urllib.request
+        url = 'https://files.grouplens.org/datasets/movielens/ml-100k.zip'
+        zip_path = os.path.join(raw_path, 'ml-100k.zip')
+        urllib.request.urlretrieve(url, zip_path)
     if not os.path.exists(os.path.join(raw_path, 'u.data')):
         logger.info('Unzipping ml-100k dataset into ' + raw_path)
-        subprocess.call(
-            f'cd {raw_path} && unzip ml-100k.zip', shell=True
-        )
-        # move the files to raw_data
-        subprocess.call(
-            f'cd {raw_path} && mv ml-100k/* . && rm -r ml-100k', shell=True
-        )
+        import zipfile
+        import shutil
+        
+        # Extract zip file
+        with zipfile.ZipFile(os.path.join(raw_path, 'ml-100k.zip'), 'r') as zip_ref:
+            zip_ref.extractall(raw_path)
+        
+        # Move files from ml-100k subdirectory to raw_data directory
+        ml100k_dir = os.path.join(raw_path, 'ml-100k')
+        if os.path.exists(ml100k_dir):
+            for file in os.listdir(ml100k_dir):
+                src = os.path.join(ml100k_dir, file)
+                dst = os.path.join(raw_path, file)
+                shutil.move(src, dst)
+            # Remove empty ml-100k directory
+            shutil.rmtree(ml100k_dir)
 
 def read_data(dir: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     with open(os.path.join(dir, 'u.data'), 'r') as f:
