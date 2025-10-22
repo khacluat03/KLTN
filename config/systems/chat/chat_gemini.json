@@ -2,8 +2,8 @@
     "supported_tasks": [
         "chat"
     ],
-    "manager_action": "config/agents/manager_action_gemini.json",
-    "manager_thought": "config/agents/manager_thought_gemini.json",
+    "manager_action": "config/agents/manager_action.json",
+    "manager_thought": "config/agents/manager_thought.json",
     "interpreter": "config/agents/interpreter.json",
     "searcher": "config/agents/searcher.json",
     "agent_prompt": "config/prompts/old_system_prompt/react_chat.json",

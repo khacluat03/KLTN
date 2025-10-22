@@ -3,7 +3,7 @@ from typing import Any, Optional
 from loguru import logger
 
 from macrec.systems.base import System
-from macrec.agents import Agent, Manager, Analyst, Interpreter, Reflector, Searcher
+from macrec.agents import Agent, Manager, Analyst, Interpreter, Reflector, Searcher, PersonalizationAgent
 from macrec.utils import parse_answer, parse_action, format_chat_history
 
 class CollaborationSystem(System):
@@ -64,8 +64,14 @@ class CollaborationSystem(System):
     @property
     def searcher(self) -> Optional[Searcher]:
         if 'Searcher' not in self.agents:
-            raise None
+            return None
         return self.agents['Searcher']
+
+    @property
+    def personalization_agent(self) -> Optional[PersonalizationAgent]:
+        if 'PersonalizationAgent' not in self.agents:
+            return None
+        return self.agents['PersonalizationAgent']
 
     def reset(self, clear: bool = False, *args, **kwargs) -> None:
         super().reset(*args, **kwargs)

@@ -34,6 +34,9 @@ class Reflector(Agent):
         self.llm = self.get_LLM(config=config)
         if isinstance(self.llm, AnyOpenAILLM):
             self.enc = tiktoken.encoding_for_model(self.llm.model_name)
+        elif hasattr(self.llm, 'model_name') and 'gemini' in self.llm.model_name.lower():
+            # For Gemini models, don't load external tokenizer
+            self.enc = None
         else:
             self.enc = AutoTokenizer.from_pretrained(self.llm.model_name)
         self.json_mode = self.llm.json_mode
@@ -74,9 +77,13 @@ class Reflector(Agent):
         if self.keep_reflections:
             self.reflection_input = reflection_prompt
             self.reflection_output = reflection_response
-            logger.trace(f'Reflection input length: {len(self.enc.encode(self.reflection_input))}')
+            if self.enc is not None:
+                logger.trace(f'Reflection input length: {len(self.enc.encode(self.reflection_input))}')
+                logger.trace(f'Reflection output length: {len(self.enc.encode(self.reflection_output))}')
+            else:
+                logger.trace(f'Reflection input length: {len(self.reflection_input)}')
+                logger.trace(f'Reflection output length: {len(self.reflection_output)}')
             logger.trace(f"Reflection input: {self.reflection_input}")
-            logger.trace(f'Reflection output length: {len(self.enc.encode(self.reflection_output))}')
             if self.json_mode:
                 self.system.log(f"[:violet[Reflection]]:\n- `{self.reflection_output}`", agent=self, logging=False)
             else:

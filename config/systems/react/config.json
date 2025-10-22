@@ -4,8 +4,8 @@
         "sr",
         "gen"
     ],
-    "manager_action": "config/agents/manager_action_gemini.json",
-    "manager_thought": "config/agents/manager_thought_gemini.json",
+    "manager_action": "config/agents/manager_action.json",
+    "manager_thought": "config/agents/manager_thought.json",
     "agent_prompt": "config/prompts/old_system_prompt/react.json",
     "data_prompt": "config/prompts/data_prompt/{task}.json",
     "task_agent_prompt": "config/prompts/task_agent_prompt/react_{task}.json",
