@@ -136,7 +136,7 @@ def chat_gemini_page():
         
         st.markdown("### 📊 System Info")
         st.info(f"""
-        **Model:** gemini-2.0-flash-exp  
+        **Model:** gemini-2.0-flash
         **Temperature:** 0.3 (optimized for speed)  
         **Max Tokens:** 512 (optimized for speed)  
         **Provider:** Google Gemini

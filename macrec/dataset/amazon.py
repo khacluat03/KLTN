@@ -29,14 +29,14 @@ def download_data(dir: str, dataset: str):
     if not os.path.exists(dir):
         subprocess.call('mkdir ' + dir, shell=True)
     raw_path = os.path.join(dir, 'raw_data')
-    data_file = 'reviews_{}_5.json.gz'.format(dataset)
+    data_file = 'reviews_{}.json.gz'.format(dataset)
     meta_file = 'meta_{}.json.gz'.format(dataset)
     if not os.path.exists(raw_path):
         subprocess.call('mkdir ' + raw_path, shell=True)
     if not os.path.exists(os.path.join(raw_path, data_file)):
         logger.info('Downloading interaction data into ' + raw_path)
         subprocess.call(
-            'cd {} && curl -O http://snap.stanford.edu/data/amazon/productGraph/categoryFiles/reviews_{}_5.json.gz'
+            'cd {} && curl -O http://snap.stanford.edu/data/amazon/productGraph/categoryFiles/reviews_{}.json.gz'
             .format(raw_path, dataset), shell=True)
     if not os.path.exists(os.path.join(raw_path, meta_file)):
         logger.info('Downloading item metadata into ' + raw_path)
@@ -46,7 +46,7 @@ def download_data(dir: str, dataset: str):
 
 def read_data(dir: str, dataset: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     raw_path = os.path.join(dir, 'raw_data')
-    data_file = 'reviews_{}_5.json.gz'.format(dataset)
+    data_file = 'reviews_{}.json.gz'.format(dataset)
     meta_file = 'meta_{}.json.gz'.format(dataset)
     data_df = get_df(os.path.join(raw_path, data_file))
     meta_df = get_df(os.path.join(raw_path, meta_file))
