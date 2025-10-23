@@ -6,8 +6,6 @@
 nohup.out
 
 # Virtualenv
-venv/
-my_env310
 
 # Build
 build/
@@ -24,12 +22,4 @@ __pycache__/
 # Others
 data/
 logs/
-run/
-results/
-ckpts/
-config/api-config.json
-test*
-!macrec/*/test*
 
-wandb/
-trlx/
