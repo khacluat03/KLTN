@@ -6,5 +6,13 @@
     "finish_json": {
         "type": "raw",
         "content": "\"Hello! How can I assist you today?\""
+    },
+    "finish_vietnamese": {
+        "type": "raw",
+        "content": "Xin chào! Tôi có thể giúp gì cho bạn hôm nay?"
+    },
+    "finish_vietnamese_json": {
+        "type": "raw",
+        "content": "\"Xin chào! Tôi có thể giúp gì cho bạn hôm nay?\""
     }
 }
