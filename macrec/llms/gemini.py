@@ -31,7 +31,8 @@ class AnyGeminiLLM(BaseLLM):
             google_api_key=api_key,
             convert_system_message_to_human=True,
             temperature=kwargs.get("temperature", 0.7),
-            **{k: v for k, v in kwargs.items() if k not in ("google_api_key", "api_key", "temperature")},
+            max_output_tokens=self.max_tokens,
+            **{k: v for k, v in kwargs.items() if k not in ("google_api_key", "api_key", "temperature", "max_tokens", "model_type", "model_name")},
         )
         self.model_type = "chat"
 
