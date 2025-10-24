@@ -77,7 +77,7 @@ class Agent(ABC):
         """
         if config is None:
             assert config_path is not None
-            with open(config_path, 'r') as f:
+            with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
         model_type = config['model_type']
         del config['model_type']
