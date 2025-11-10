@@ -1,0 +1,23 @@
+services:
+  macrec:
+    build:
+      context: .
+    container_name: macrec
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+    ports:
+      - "8501:8501"
+    stdin_open: true
+    tty: true
+    # Run Streamlit web demo automatically
+    command: >
+      bash -c "
+        echo 'Local URL: http://localhost:8501/';
+        streamlit run web_demo.py
+          --server.port=8501
+          --server.address=0.0.0.0
+      "
+
