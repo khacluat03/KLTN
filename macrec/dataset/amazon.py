@@ -5,6 +5,7 @@ import numpy as np
 import gzip
 import subprocess
 from typing import Generator
+from urllib.request import urlretrieve
 from loguru import logger
 from langchain.prompts import PromptTemplate
 
@@ -26,23 +27,33 @@ def get_df(path: str) -> pd.DataFrame:
 
 # download data if not exists
 def download_data(dir: str, dataset: str):
-    if not os.path.exists(dir):
-        subprocess.call('mkdir ' + dir, shell=True)
+    os.makedirs(dir, exist_ok=True)
     raw_path = os.path.join(dir, 'raw_data')
+    os.makedirs(raw_path, exist_ok=True)
     data_file = 'reviews_{}_5.json.gz'.format(dataset)
     meta_file = 'meta_{}.json.gz'.format(dataset)
-    if not os.path.exists(raw_path):
-        subprocess.call('mkdir ' + raw_path, shell=True)
-    if not os.path.exists(os.path.join(raw_path, data_file)):
+    data_path = os.path.join(raw_path, data_file)
+    meta_path = os.path.join(raw_path, meta_file)
+    
+    if not os.path.exists(data_path):
         logger.info('Downloading interaction data into ' + raw_path)
-        subprocess.call(
-            'cd {} && curl -O http://snap.stanford.edu/data/amazon/productGraph/categoryFiles/reviews_{}_5.json.gz'
-            .format(raw_path, dataset), shell=True)
-    if not os.path.exists(os.path.join(raw_path, meta_file)):
+        data_url = 'http://snap.stanford.edu/data/amazon/productGraph/categoryFiles/reviews_{}_5.json.gz'.format(dataset)
+        try:
+            urlretrieve(data_url, data_path)
+            logger.info(f'Successfully downloaded {data_file}')
+        except Exception as e:
+            logger.error(f'Failed to download {data_file}: {e}')
+            raise
+    
+    if not os.path.exists(meta_path):
         logger.info('Downloading item metadata into ' + raw_path)
-        subprocess.call(
-            'cd {} && curl -O http://snap.stanford.edu/data/amazon/productGraph/categoryFiles/meta_{}.json.gz'
-            .format(raw_path, dataset), shell=True)
+        meta_url = 'http://snap.stanford.edu/data/amazon/productGraph/categoryFiles/meta_{}.json.gz'.format(dataset)
+        try:
+            urlretrieve(meta_url, meta_path)
+            logger.info(f'Successfully downloaded {meta_file}')
+        except Exception as e:
+            logger.error(f'Failed to download {meta_file}: {e}')
+            raise
 
 def read_data(dir: str, dataset: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     raw_path = os.path.join(dir, 'raw_data')
