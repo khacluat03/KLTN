@@ -204,6 +204,6 @@ if __name__ == '__main__':
     for prompt_name, prompt_template in prompts.items():
         if isinstance(prompt_template, PromptTemplate) and 'task_type' in prompt_template.input_variables:
             prompts[prompt_name] = prompt_template.partial(task_type='rating prediction')
-    analyst = Analyst(config_path='config/agents/analyst_ml-100k.json', prompts=prompts)
+    analyst = Analyst(config_path='config/agents/analyst_Beauty.json', prompts=prompts)
     user_id, item_id = list(map(int, input('User id and item id: ').split()))
     result = analyst(user_id=user_id, item_id=item_id)
