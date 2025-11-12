@@ -35,7 +35,7 @@ def demo():
     supported_tasks = config['supported_tasks']
     supported_tasks = [task for task in supported_tasks if task in system_type.supported_tasks()]
     if mode == 'Users':
-        dataset = st.sidebar.selectbox('Choose a dataset', ['ml-100k', 'Beauty'])
+        dataset = st.sidebar.selectbox('Choose a dataset', ['Beauty'])
         user_page(dataset=dataset)
         return
     elif mode == 'Chat':

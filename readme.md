@@ -80,9 +80,9 @@ This project implements a recommendation system based on multi-agent architectur
    pip install -r requirements.txt
    ```
 
-3. **Download and preprocess datasets** (including `ml-100k` and `Amazon Beauty`):
+3. **Download and preprocess datasets** (Amazon Beauty):
    ```bash
-   bash ./scripts/preprocess.sh
+   python main.py --main Preprocess --data_dir data/Beauty --dataset amazon --n_neg_items 7
    ```
 
 ## Usage Guide
@@ -96,10 +96,10 @@ python main.py -m $task_name --verbose $verbose $extra_args
 
 This command runs the `${task_name}Task` defined in `macrec/tasks/*.py`.
 
-**Example:** Evaluate sequence recommendation on MovieLens-100k dataset with Collaboration system (including Reflector, Analyst, and Searcher):
+**Example:** Evaluate sequence recommendation on Amazon Beauty dataset with Collaboration system (including Reflector, Analyst, and Searcher):
 ```bash
 python main.py --main Evaluate \
-  --data_file data/ml-100k/test.csv \
+  --data_file data/Beauty/test.csv \
   --system collaboration \
   --system_config config/systems/collaboration/reflect_analyse_search.json \
   --task sr
