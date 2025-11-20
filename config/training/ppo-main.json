@@ -3,7 +3,7 @@
     "epochs": 4,
     "data_kwargs": {
         "type": "jsonl",
-        "path": "data/ppo/rp/Beauty-reflection.jsonl"
+        "path": "data/ppo/rp/ml-100k-reflection.jsonl"
     },
     "ppo_kwargs": {
         "learning_rate": 1.41e-5,

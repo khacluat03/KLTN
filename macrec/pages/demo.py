@@ -35,7 +35,7 @@ def demo():
     supported_tasks = config['supported_tasks']
     supported_tasks = [task for task in supported_tasks if task in system_type.supported_tasks()]
     if mode == 'Users':
-        dataset = st.sidebar.selectbox('Choose a dataset', ['Beauty'])
+        dataset = st.sidebar.selectbox('Choose a dataset', ['ml-100k', 'Beauty'])
         user_page(dataset=dataset)
         return
     elif mode == 'Chat':
@@ -49,3 +49,4 @@ def demo():
             st.error(f'The task {task2name(task)} is not supported by the system `{system_type.__name__}` with the config file `{config_file}`.')
             return
         task_config(task=task, system_type=system_type, config_path=os.path.join(config_dir, config_file))
+        
