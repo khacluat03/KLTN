@@ -62,7 +62,7 @@ def task_config(task: str, system_type: type[System], config_path: str) -> None:
     if not checking:
         st.error('This config file requires OpenSource models, which are not supported in this machine (without cuda toolkit).')
         return
-    dataset = st.selectbox('Choose a dataset', ['Beauty']) if task != 'chat' else st.selectbox('Choose a dataset', ['chat', 'Beauty'])
+    dataset = st.selectbox('Choose a dataset', ['ml-100k', 'Beauty']) if task != 'chat' else 'chat'
     renew = False
     if 'system_type' not in st.session_state:
         logger.debug(f'New system type: {system_type.__name__}')
@@ -124,3 +124,4 @@ def task_config(task: str, system_type: type[System], config_path: str) -> None:
         gen_page(system, task, dataset)
     else:
         raise NotImplementedError
+        
