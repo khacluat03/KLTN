@@ -7,7 +7,7 @@ from langchain.prompts import PromptTemplate
 from macrec.llms import BaseLLM, AnyOpenAILLM, OpenSourceLLM
 from macrec.llms.gemini import AnyGeminiLLM
 from macrec.tools import TOOL_MAP, Tool
-from macrec.utils import run_once, format_history, read_prompts
+from macrec.utils import run_once, format_history, read_prompts, apply_provider_overrides
 
 if TYPE_CHECKING:
     from macrec.systems import System
@@ -79,6 +79,7 @@ class Agent(ABC):
             assert config_path is not None
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
+        config = apply_provider_overrides(config)
         model_type = config['model_type']
         del config['model_type']
         if model_type == 'opensource':

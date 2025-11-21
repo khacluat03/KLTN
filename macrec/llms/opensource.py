@@ -75,8 +75,13 @@ class OpenSourceLLM(BaseLLM):
             `top_p` (`float`, optional): The top-p of the generation. Defaults to `1.0`.
         """
         self.json_mode = json_mode
+        import torch
         if device == 'auto':
-            self.pipe = pipeline("text-generation", model=model_path, device_map='auto')
+            if torch.cuda.is_available():
+                self.pipe = pipeline("text-generation", model=model_path, device_map='auto')
+            else:
+                logger.warning("CUDA not available. Falling back to CPU. This might be slow.")
+                self.pipe = pipeline("text-generation", model=model_path, device=-1)
         else:
             self.pipe = pipeline("text-generation", model=model_path, device=device)
         self.pipe.model.generation_config.do_sample = do_sample

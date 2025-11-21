@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 
-from macrec.utils import read_json
+from macrec.utils import read_json, apply_provider_overrides
 
 class Tool(ABC):
     def __init__(self, config_path: str, *args, **kwargs) -> None:
-        self.config = read_json(config_path)
+        self.config = apply_provider_overrides(read_json(config_path))
 
     @abstractmethod
     def reset(self) -> None:

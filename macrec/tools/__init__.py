@@ -3,10 +3,12 @@ from macrec.tools.summarize import TextSummarizer
 from macrec.tools.wikipedia import Wikipedia
 from macrec.tools.info_database import InfoDatabase
 from macrec.tools.interaction import InteractionRetriever
+from macrec.tools.rag_sql import RAGTextToSQL
 
 TOOL_MAP: dict[str, type] = {
     'summarize': TextSummarizer,
     'wikipedia': Wikipedia,
     'info': InfoDatabase,
     'interaction': InteractionRetriever,
+    'rag_sql': RAGTextToSQL,
 }

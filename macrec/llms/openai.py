@@ -5,17 +5,17 @@ from langchain.schema import HumanMessage
 from macrec.llms.basellm import BaseLLM
 
 class AnyOpenAILLM(BaseLLM):
-    def __init__(self, model_name: str = 'gpt-3.5-turbo', json_mode: bool = False, *args, **kwargs):
+    def __init__(self, model_name: str = 'gpt-4o-mini', json_mode: bool = False, *args, **kwargs):
         """Initialize the OpenAI LLM.
 
         Args:
-            `model_name` (`str`, optional): The name of the OpenAI model. Defaults to `gpt-3.5-turbo`.
+            `model_name` (`str`, optional): The name of the OpenAI model. Defaults to `gpt-4o-mini`.
             `json_mode` (`bool`, optional): Whether to use the JSON mode of the OpenAI API. Defaults to `False`.
         """
         self.model_name = model_name
         self.json_mode = json_mode
-        if json_mode and self.model_name not in ['gpt-3.5-turbo-1106', 'gpt-4-1106-preview']:
-            raise ValueError("json_mode is only available for gpt-3.5-turbo-1106 and gpt-4-1106-preview")
+        if json_mode and self.model_name not in ['gpt-4o-mini']:
+            raise ValueError("json_mode is only available for gpt-4o-mini")
         self.max_tokens: int = kwargs.get('max_tokens', 256)
         self.max_context_length: int = 16384 if '16k' in model_name else 32768 if '32k' in model_name else 4096
         if model_name.split('-')[0] == 'text' or model_name == 'gpt-3.5-turbo-instruct':

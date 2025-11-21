@@ -15,6 +15,7 @@ class ChatSystem(System):
         self.searcher = Searcher(config_path=self.config['searcher'], **self.agent_kwargs)
         self.interpreter = Interpreter(config_path=self.config['interpreter'], **self.agent_kwargs)
         self.max_step: int = self.config.get('max_step', 6)
+        self.require_search_before_finish: bool = self.config.get('require_search_before_finish', True)
         self.manager_kwargs = {
             "max_step": self.max_step,
         }
@@ -32,7 +33,22 @@ class ChatSystem(System):
 
     def _reset_action_history(self) -> None:
         self.step_n: int = 1
+        self._search_performed: bool = False
         self.action_history = []
+        self._is_database_task: bool = False
+    
+    def _detect_database_task(self, text: str) -> bool:
+        """Detect if task is related to database queries"""
+        if not text:
+            return False
+        text_lower = text.lower()
+        db_keywords = [
+            'user', 'item', 'interaction', 'rating', 'phim', 'movie', 'film',
+            'xem', 'watch', 'đã xem', 'watched', 'đánh giá', 'review',
+            'database', 'bảng', 'table', 'truy vấn', 'query', 'sql',
+            'select', 'top', 'liệt kê', 'tìm', 'find'
+        ]
+        return any(keyword in text_lower for keyword in db_keywords)
 
     def add_chat_history(self, chat: str, role: str) -> None:
         self._chat_history.append((chat, role))
@@ -51,26 +67,69 @@ class ChatSystem(System):
 
     def act(self) -> tuple[str, Any]:
         # Act
+        # Detect if this is a database-related task
+        if not hasattr(self, '_is_database_task') or self.step_n == 1:
+            self._is_database_task = self._detect_database_task(getattr(self, 'task_prompt', ''))
+        
         self.scratchpad += f'\nValid action example: {self.manager.valid_action_example}:'
         if self.step_n == self.max_step:
             self.scratchpad += f'\nHint: {self.manager.hint}'
+        
+        # Strong reminder for database tasks
+        if self._is_database_task and not self._search_performed:
+            self.scratchpad += '\n⚠️ CRITICAL: This task requires querying the database. You MUST use Search[...] action with a natural language query. You CANNOT Finish without searching first. Example: Search[top 5 users who watched movie Twister] or Search[users who watched movie Copycat]'
+        
+        # Check if previous thought mentioned Search but haven't searched yet
+        if self.require_search_before_finish and not self._search_performed:
+            last_thought = self.scratchpad.split('Thought')[-1].split('Action')[0].lower() if 'Thought' in self.scratchpad else ''
+            if 'search' in last_thought and 'finish' not in last_thought:
+                # Thought mentioned search, remind to use Search action
+                self.scratchpad += '\nREMINDER: Your Thought mentioned searching. You MUST use Search[...] action now, not Finish. You cannot Finish until you have executed at least one Search action.'
+        
         self.scratchpad += f'\nAction {self.step_n}:'
         action = self.manager(history=self.chat_history, task_prompt=self.task_prompt, scratchpad=self.scratchpad, stage='action', **self.manager_kwargs)
         self.scratchpad += ' ' + action
         action_type, argument = parse_action(action, json_mode=self.manager.json_mode)
+        
+        # Auto-convert Finish to Search for database tasks
+        if action_type.lower() == 'finish' and self._is_database_task and not self._search_performed:
+            logger.warning(f'Auto-converting Finish to Search for database task. Original: {action}')
+            # Generate a suggested SQL query based on task
+            suggested_query = self._generate_sql_suggestion(getattr(self, 'task_prompt', ''))
+            action_type = 'search'
+            argument = suggested_query
+            action = f'Search[{suggested_query}]'
+            self.scratchpad += '\n⚠️ AUTO-CORRECTED: Finish action was converted to Search action because this is a database query task.'
+        
         logger.debug(f'Action {self.step_n}: {action}')
         return action_type, argument
+    
+    def _generate_sql_suggestion(self, task_prompt: str) -> str:
+        """Generate a suggested natural language query based on task prompt"""
+        # Return the task prompt as-is, as it's already in natural language
+        # The RAG SQL tool will handle SQL generation
+        return task_prompt
 
     def execute(self, action_type: str, argument: Any):
         # Execute
         log_head = ''
         if action_type.lower() == 'finish':
-            observation = self.finish(argument)
-            log_head = ':violet[Finish with results]:\n- '
+            if self.require_search_before_finish and not self._search_performed:
+                # Provide helpful guidance when Finish is blocked
+                task_prompt_lower = getattr(self, 'task_prompt', '').lower()
+                if any(keyword in task_prompt_lower for keyword in ['sql', 'query', 'database', 'select', 'user', 'item', 'interaction']):
+                    observation = 'Finish action blocked: you must call Search[...] first. Based on the task, you should use Search[<natural language query>] to query the database. Example: Search[top 5 users who watched movie Twister] or Search[users who watched movie Copycat]'
+                else:
+                    observation = 'Finish action blocked: you must call Search[...] at least once before finishing. Use Search[<your query>] to search for information first.'
+                log_head = ':violet[Finish blocked - must Search first]:\n- '
+            else:
+                observation = self.finish(argument)
+                log_head = ':violet[Finish with results]:\n- '
         elif action_type.lower() == 'search':
             self.log(f':violet[Calling] :red[Searcher] :violet[with] :blue[{argument}]:violet[...]', agent=self.manager, logging=False)
             observation = self.searcher.invoke(argument=argument, json_mode=self.manager.json_mode)
             log_head = f':violet[Response from] :red[Searcher] :violet[with] :blue[{argument}]:violet[:]\n- '
+            self._search_performed = True
         else:
             observation = f'Invalid Action type or format: {action_type}. Valid Action examples are {self.manager.valid_action_example}.'
         self.scratchpad += f'\nObservation: {observation}'
