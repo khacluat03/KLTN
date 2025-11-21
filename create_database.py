@@ -411,8 +411,8 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description="Create SQLite database from supported datasets")
-    parser.add_argument("--dataset", type=str, default="Beauty", choices=list(DEFAULT_DATASET_CONFIG.keys()),
-                       help="Dataset to import (default: Beauty)")
+    parser.add_argument("--dataset", type=str, default="ml-100k", choices=list(DEFAULT_DATASET_CONFIG.keys()),
+                       help="Dataset to import (default: ml-100k)")
     parser.add_argument("--db_path", type=str, default=None,
                        help="Optional override for SQLite database file path")
     parser.add_argument("--data_dir", type=str, default=None,

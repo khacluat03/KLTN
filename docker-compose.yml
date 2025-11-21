@@ -12,6 +12,7 @@ services:
       - ./create_database.py:/app/create_database.py
     environment:
       - PYTHONPATH=/app
+      - DATASET=ml-100k
     ports:
       - "8501:8501"
     stdin_open: true
@@ -21,6 +22,12 @@ services:
     command: >
       bash -c "
         echo 'Local URL: http://localhost:8501/';
+        if [ ! -f data/ml-100k/database.db ]; then
+          echo 'database.db not found. Running create_database.py...';
+          python create_database.py --dataset ${DATASET:-ml-100k};
+        else
+          echo 'database.db already exists. Skipping create_database.py.';
+        fi;
         streamlit run web_demo.py
           --server.port=8501
           --server.address=0.0.0.0
