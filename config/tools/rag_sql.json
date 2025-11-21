@@ -1,0 +1,10 @@
+{
+    "db_type": "sqlite",
+    "db_path": "data/ml-100k/database.db",
+    "embedding_model": "text-embedding-3-small",
+    "llm_model": "gpt-4o-mini",
+    "top_k": 5,
+    "schema_path": "config/tools/schema.json",
+    "schema_docs": null
+}
+

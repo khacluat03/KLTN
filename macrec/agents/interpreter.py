@@ -15,6 +15,7 @@ class Interpreter(ToolAgent):
         self.max_turns = get_rm(config, 'max_turns', 6)
         self.interpreter = self.get_LLM(config=config)
         self.json_mode = self.interpreter.json_mode
+        self.latest_summary: str = ''
         self.reset()
 
     @staticmethod
@@ -53,16 +54,33 @@ class Interpreter(ToolAgent):
         command = self.interpreter(interpreter_prompt)
         return command
 
+    def reset(self) -> None:
+        super().reset()
+        self.latest_summary = ''
+
     def command(self, command: str, input: str) -> None:
         logger.debug(f'Command: {command}')
         log_head = ''
         action_type, argument = parse_action(command, json_mode=self.json_mode)
         if action_type.lower() == 'summarize':
-            observation = self.summarizer.summarize(text=input)
+            if self.latest_summary:
+                observation = 'Summary already generated. Please call Finish[...] to output it.'
+            else:
+                observation = self.summarizer.summarize(text=input)
+                self.latest_summary = observation
             log_head = ':violet[Summarize input...]\n- '
         elif action_type.lower() == 'finish':
-            observation = self.finish(results=argument)
-            log_head = ':violet[Finish with results]:\n- '
+            final_result = argument.strip() if isinstance(argument, str) else ''
+            if self.latest_summary:
+                final_result = self.latest_summary
+            if not final_result:
+                final_result = 'Interpreter has no summary to return.'
+            if self.finished:
+                observation = self.results
+                log_head = ':violet[Finish already returned]:\n- '
+            else:
+                observation = self.finish(results=final_result)
+                log_head = ':violet[Finish with results]:\n- '
         else:
             observation = f'Unknown command type: {action_type}.'
         logger.debug(f'Observation: {observation}')

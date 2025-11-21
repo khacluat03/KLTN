@@ -20,8 +20,11 @@ def parse_action(action: str, json_mode: bool = False) -> tuple[str, Any]:
         except Exception:
             return 'Invalid', None
     else:
+        if not isinstance(action, str):
+            return 'Invalid', None
+        action = action.strip()
         pattern = r'^(\w+)\[(.*)\]$'
-        match = re.match(pattern, action)
+        match = re.match(pattern, action, re.DOTALL)
 
         if match:
             action_type = match.group(1)

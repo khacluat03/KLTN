@@ -1,0 +1,153 @@
+{
+    "users": {
+        "description": "Table containing user profile information from ml-100k dataset. In Vietnamese queries, this corresponds to 'người dùng'. Used for demographic-based movie recommendations based on age, gender, and occupation. Always use the English table name 'users' and English column names (user_id, age, gender, occupation, user_profile) when writing SQL, even if the user prompt is in Vietnamese.",
+        "columns": {
+            "user_id": {
+                "type": "INTEGER",
+                "description": "Unique identifier for each user (PRIMARY KEY)"
+            },
+            "age": {
+                "type": "INTEGER",
+                "description": "Age of the user"
+            },
+            "gender": {
+                "type": "TEXT",
+                "description": "Gender of the user (male, female, etc.)"
+            },
+            "occupation": {
+                "type": "TEXT",
+                "description": "Occupation of the user (e.g., technician, writer, student, etc.)"
+            },
+            "user_profile": {
+                "type": "TEXT",
+                "description": "Formatted user profile text containing age, gender, and occupation information"
+            }
+        },
+        "examples": [
+            "SELECT * FROM users WHERE user_id = 1",
+            "SELECT user_id, age, gender, occupation FROM users WHERE gender = 'male'",
+            "SELECT COUNT(*) FROM users WHERE age > 30",
+            "SELECT occupation, COUNT(*) as count FROM users GROUP BY occupation ORDER BY count DESC",
+            "SELECT user_id, age, gender, occupation, user_profile FROM users WHERE user_id = 1",
+            "SELECT * FROM users WHERE user_id = 1"
+        ]
+    },
+    "items": {
+        "description": "Table containing movie/item information from ml-100k dataset. In Vietnamese queries, this corresponds to 'phim', 'bộ phim' hoặc 'items'. All movie titles and genres are stored in English (e.g., 'Action', 'Comedy', 'Mystery', 'Crime'), so when the user asks in Vietnamese (e.g., 'trinh thám'), you MUST first translate the genre or keyword to English before using it in SQL WHERE conditions. Always use the English table name 'items' and English column names (item_id, title, release_date, video_release_date, genre, item_attributes) when writing SQL.",
+        "columns": {
+            "item_id": {
+                "type": "INTEGER",
+                "description": "Unique identifier for each item/movie (PRIMARY KEY)"
+            },
+            "title": {
+                "type": "TEXT",
+                "description": "Movie title/name"
+            },
+            "release_date": {
+                "type": "TEXT",
+                "description": "Release date of the movie (format: DD-Mon-YYYY)"
+            },
+            "video_release_date": {
+                "type": "TEXT",
+                "description": "Video release date of the movie (may be 'unknown')"
+            },
+            "genre": {
+                "type": "TEXT",
+                "description": "Movie genres separated by | (e.g., 'Action|Adventure|Thriller')"
+            },
+            "item_attributes": {
+                "type": "TEXT",
+                "description": "Formatted item attributes containing title and genres information"
+            }
+        },
+        "examples": [
+            "SELECT * FROM items WHERE item_id = 1",
+            "SELECT item_id, title, genre FROM items WHERE genre LIKE '%Comedy%'",
+            "SELECT COUNT(*) FROM items WHERE genre LIKE '%Action%'",
+            "SELECT * FROM items WHERE title LIKE '%Toy Story%'",
+            "SELECT item_id, title, release_date, genre FROM items ORDER BY release_date DESC LIMIT 10",
+            "SELECT item_id, title, genre, item_attributes FROM items WHERE genre LIKE '%Action%' AND genre LIKE '%Adventure%'",
+            "SELECT item_id, title, genre FROM items WHERE genre LIKE '%Drama%' OR genre LIKE '%Romance%'",
+            "SELECT DISTINCT item_id, title, genre FROM items WHERE genre LIKE '%Sci-Fi%' ORDER BY title"
+        ]
+    },
+    "interactions": {
+        "description": "Table containing user-item interactions (ratings) from ml-100k train/dev/test splits. In Vietnamese queries, this corresponds to 'tương tác', 'lịch sử xem', 'lịch sử đánh giá'. This table links 'users' (người dùng) and 'items' (phim). Always use the English table name 'interactions' and English column names (user_id, item_id, rating, timestamp, dataset_split, etc.) when writing SQL, even if the user prompt is in Vietnamese.",
+        "columns": {
+            "id": {
+                "type": "INTEGER",
+                "description": "Auto-increment primary key"
+            },
+            "user_id": {
+                "type": "INTEGER",
+                "description": "Foreign key to users table - ID of the user who interacted"
+            },
+            "item_id": {
+                "type": "INTEGER",
+                "description": "Foreign key to items table - ID of the item/movie interacted with"
+            },
+            "rating": {
+                "type": "REAL",
+                "description": "Rating given by user (typically 1-5)"
+            },
+            "timestamp": {
+                "type": "INTEGER",
+                "description": "Unix timestamp of when the interaction occurred"
+            },
+            "dataset_split": {
+                "type": "TEXT",
+                "description": "Which dataset split this interaction belongs to: 'train', 'dev', or 'test'"
+            },
+            "neg_item_id": {
+                "type": "TEXT",
+                "description": "JSON array string of negative item IDs (items not interacted with)"
+            },
+            "position": {
+                "type": "INTEGER",
+                "description": "Position of the item in the recommendation list"
+            },
+            "history_item_id": {
+                "type": "TEXT",
+                "description": "JSON array string of historical item IDs the user has interacted with"
+            },
+            "history_rating": {
+                "type": "TEXT",
+                "description": "JSON array string of historical ratings corresponding to history_item_id"
+            },
+            "history": {
+                "type": "TEXT",
+                "description": "Formatted text of user's interaction history"
+            },
+            "user_profile": {
+                "type": "TEXT",
+                "description": "User profile information for this interaction"
+            },
+            "target_item_attributes": {
+                "type": "TEXT",
+                "description": "Attributes of the target item being rated"
+            },
+            "candidate_item_id": {
+                "type": "TEXT",
+                "description": "JSON array string of candidate item IDs for recommendation"
+            },
+            "candidate_item_attributes": {
+                "type": "TEXT",
+                "description": "Attributes of candidate items for recommendation"
+            }
+        },
+        "examples": [
+            "SELECT * FROM interactions WHERE user_id = 1 LIMIT 10",
+            "SELECT i.item_id, AVG(i.rating) as avg_rating FROM interactions i GROUP BY i.item_id ORDER BY avg_rating DESC LIMIT 10",
+            "SELECT COUNT(*) FROM interactions WHERE rating >= 4.0",
+            "SELECT user_id, COUNT(*) as num_interactions FROM interactions GROUP BY user_id ORDER BY num_interactions DESC LIMIT 10",
+            "SELECT * FROM interactions WHERE dataset_split = 'train' LIMIT 100",
+            "SELECT i.item_id, COUNT(*) as num_ratings, AVG(i.rating) as avg_rating FROM interactions i GROUP BY i.item_id HAVING num_ratings >= 10 ORDER BY avg_rating DESC",
+            "SELECT i.item_id, it.title, it.genre, i.rating FROM interactions i JOIN items it ON i.item_id = it.item_id WHERE i.user_id = 1 ORDER BY i.rating DESC",
+            "SELECT it.genre, COUNT(*) as count FROM interactions i JOIN items it ON i.item_id = it.item_id WHERE i.user_id = 1 GROUP BY it.genre ORDER BY count DESC",
+            "SELECT it.item_id, it.title, it.genre, AVG(i.rating) as avg_rating FROM interactions i JOIN items it ON i.item_id = it.item_id WHERE it.genre LIKE '%Action%' GROUP BY it.item_id, it.title, it.genre ORDER BY avg_rating DESC LIMIT 10",
+            "SELECT DISTINCT it.item_id, it.title, it.genre, AVG(i.rating) as avg_rating FROM interactions i JOIN items it ON i.item_id = it.item_id WHERE i.user_id != 1 AND it.genre IN (SELECT DISTINCT genre FROM items WHERE item_id IN (SELECT item_id FROM interactions WHERE user_id = 1 AND rating >= 4)) AND it.item_id NOT IN (SELECT item_id FROM interactions WHERE user_id = 1) GROUP BY it.item_id ORDER BY avg_rating DESC LIMIT 10",
+            "SELECT it.item_id, it.title, it.genre, COUNT(DISTINCT i.user_id) as num_users, AVG(i.rating) as avg_rating FROM interactions i JOIN items it ON i.item_id = it.item_id WHERE i.user_id IN (SELECT DISTINCT user_id FROM interactions WHERE item_id IN (SELECT item_id FROM interactions WHERE user_id = 1 AND rating >= 4) AND user_id != 1) AND it.item_id NOT IN (SELECT item_id FROM interactions WHERE user_id = 1) GROUP BY it.item_id ORDER BY num_users DESC, avg_rating DESC LIMIT 10"
+        ]
+    }
+}
+

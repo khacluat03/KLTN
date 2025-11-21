@@ -9,6 +9,7 @@
     "agent_prompt": "config/prompts/old_system_prompt/react_chat.json",
     "data_prompt": "config/prompts/data_prompt/{task}.json",
     "task_agent_prompt": "config/prompts/task_agent_prompt/searcher_{task}.json",
+    "require_search_before_finish": true,
     "tools": {
         "summarize": {
             "model_type": "gemini",

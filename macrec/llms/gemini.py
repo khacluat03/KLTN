@@ -6,7 +6,7 @@ from macrec.llms.basellm import BaseLLM
 
 
 class AnyGeminiLLM(BaseLLM):
-    def __init__(self, model_name: str = "gemini-2.0-flash-exp", json_mode: bool = False, *args, **kwargs):
+    def __init__(self, model_name: str = "gemini-2.0-flash", json_mode: bool = False, *args, **kwargs):
         self.model_name = model_name
         self.json_mode = json_mode
         self.max_tokens: int = kwargs.get("max_tokens", 512)

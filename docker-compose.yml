@@ -5,7 +5,11 @@ services:
     container_name: macrec
     working_dir: /app
     volumes:
-      - .:/app
+      - ./macrec:/app/macrec
+      - ./web_demo.py:/app/web_demo.py
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./create_database.py:/app/create_database.py
     environment:
       - PYTHONPATH=/app
     ports:
@@ -13,6 +17,7 @@ services:
     stdin_open: true
     tty: true
     # Run Streamlit web demo automatically
+    # Also create database if it doesn't exist or has old schema
     command: >
       bash -c "
         echo 'Local URL: http://localhost:8501/';

@@ -24,5 +24,5 @@
     },
     "agent_prompt": "config/prompts/manager_prompt/reflect_analyse_search.json",
     "data_prompt": "config/prompts/data_prompt/{task}.json",
-    "max_step": 10
+    "max_step": 5
 }

@@ -8,7 +8,7 @@
             "thought_config_path": "config/agents/manager_thought.json"
         },
         "Searcher": {
-            "config_path": "config/agents/searcher.json",
+            "config_path": "config/agents/searcher_chat_sql.json",
             "prompt_config": "config/prompts/agent_prompt/searcher.json"
         },
         "Interpreter": {
@@ -18,5 +18,6 @@
     },
     "agent_prompt": "config/prompts/manager_prompt/chat.json",
     "data_prompt": "config/prompts/data_prompt/{task}.json",
-    "max_step": 1
+    "max_step": 1,
+    "require_search_before_finish": true
 }
