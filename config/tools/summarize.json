@@ -1,6 +1,6 @@
 {
-    "model_type": "gemini",
-    "model_name": "gemini-2.0-flash-exp",
+    "model_type": "openai",
+    "model_name": "gpt-4o-mini",
     "temperature": 0.3,
     "max_tokens": 256,
     "prompt_template": "You are a helpful assistant. Summarize the following text in Vietnamese with no more than 3 sentences.\n\nNội dung:\n{text}\n\nTóm tắt:"
