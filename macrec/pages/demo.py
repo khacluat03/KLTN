@@ -18,12 +18,12 @@ def demo():
         from macrec.utils.init import init_openai_api
         init_openai_api(api_cfg)
     st.set_page_config(
-        page_title="MACRec Demo",
+        page_title="test",
         page_icon="🧠",
         layout="wide",
     )
     st.sidebar.title('MACRec Demo')
-    mode = st.sidebar.radio('Mode', ['Tasks', 'Users', 'Chat'])
+    mode = st.sidebar.radio('Mode', ['Tasks', 'Users'])
     # choose a system
     system_type = st.sidebar.radio('Choose a system', SYSTEMS, format_func=lambda x: x.__name__)
     # choose the config
@@ -38,15 +38,43 @@ def demo():
         dataset = st.sidebar.selectbox('Choose a dataset', ['ml-100k', 'Beauty'])
         user_page(dataset=dataset)
         return
-    elif mode == 'Chat':
-        from macrec.pages.chat_gemini import chat_gemini_page
-        chat_gemini_page()
-        return
+    # elif mode == 'Chat':
+    #     from macrec.pages.chat_gemini import chat_gemini_page
+    #     chat_gemini_page()
+    #     return
     else:
         # choose a task
         task = st.sidebar.radio('Choose a task', all_tasks, format_func=task2name)
         if task not in supported_tasks:
             st.error(f'The task {task2name(task)} is not supported by the system `{system_type.__name__}` with the config file `{config_file}`.')
             return
+                # --- Bảng hướng dẫn chọn System – Task ---
+        with st.sidebar.expander("📌 System – Task Mapping", expanded=True):
+
+            st.markdown("""
+            ### **ReActSystem** $\iff$ ⭐Rating Prediction  - ⭐Sequential Recommendation - ⭐Explanation Generation  
+            _Hệ thống reasoning–acting phù hợp dự đoán & sinh giải thích._
+
+            ---
+
+            ### **ReflectionSystem** $\iff$ ⭐Rating Prediction - ⭐Sequential Recommendation - ⭐Explanation Generation
+            _Giống ReAct nhưng có bước Reflection để cải thiện kết quả._
+
+            ---
+
+            ### **ChatSystem** $\iff$ ⭐Conversational Recommendation  
+            ❗ _Không hỗ trợ Rating Prediction, Sequential hay Explanation._
+
+            ---
+
+            ### **AnalyseSystem** $\iff$ ⭐ Rating Prediction (tùy config) -⭐Sequential Recommendation (tùy config)  
+            _Dùng để phân tích và đánh giá mô hình._
+
+            ---
+
+            ### **CollaborationSystem** $\iff$ ⭐Sequential Recommendation - ⭐Explanation Generation - ⭐Conversational Recommendation (tùy config)
+            _Hệ multi-agent cộng tác cho task phức tạp._
+            """)
+
         task_config(task=task, system_type=system_type, config_path=os.path.join(config_dir, config_file))
         

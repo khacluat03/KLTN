@@ -1,10 +1,10 @@
 {
     "valid_action_example": {
         "type": "raw",
-        "content": "Search[Schindler's list]\nFinish[Hello! How can I assist you today?]"
+        "content": "Search[Schindler's list]\nFinish[Xin chào! Tôi có thể giúp gì cho bạn hôm nay?]"
     },
     "valid_action_example_json": {
         "type": "raw",
-        "content": "`{\"type\": \"search\", \"content\": \"Schindler's list\"}`\n`{\"type\": \"finish\", \"content\": \"Hello! How can I assist you today?\"}`"
+        "content": "`{\"type\": \"search\", \"content\": \"Schindler's list\"}`\n`{\"type\": \"finish\", \"content\": \"Xin chào! Tôi có thể giúp gì cho bạn hôm nay?\"}`"
     }
 }
