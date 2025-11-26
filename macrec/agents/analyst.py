@@ -2,7 +2,10 @@ from typing import Any
 from loguru import logger
 
 from macrec.agents.base import ToolAgent
-from macrec.tools import InfoDatabase, InteractionRetriever
+from macrec.tools.info_database import InfoDatabase
+from macrec.tools.interaction import InteractionRetriever
+from macrec.tools.rating_predictor import RatingPredictor
+from macrec.tools.sequential_predictor import SequentialPredictor
 from macrec.utils import read_json, get_rm, parse_action
 
 class Analyst(ToolAgent):
@@ -21,6 +24,8 @@ class Analyst(ToolAgent):
         return {
             'info_retriever': InfoDatabase,
             'interaction_retriever': InteractionRetriever,
+            'rating_predictor': RatingPredictor,
+            'sequential_predictor': SequentialPredictor,
         }
 
     @property
@@ -30,6 +35,14 @@ class Analyst(ToolAgent):
     @property
     def interaction_retriever(self) -> InteractionRetriever:
         return self.tools['interaction_retriever']
+
+    @property
+    def rating_predictor(self) -> RatingPredictor:
+        return self.tools['rating_predictor']
+    
+    @property
+    def sequential_predictor(self) -> SequentialPredictor:
+        return self.tools['sequential_predictor']
 
     @property
     def analyst_prompt(self) -> str:
@@ -59,6 +72,13 @@ class Analyst(ToolAgent):
         return self.prompts['analyst_hint']
 
     def _build_analyst_prompt(self, **kwargs) -> str:
+        # Ensure all required placeholders are available
+        if 'task_type' not in kwargs:
+            kwargs['task_type'] = 'recommendation'  # Default fallback for analyst tasks
+        if 'user_id' not in kwargs or kwargs['user_id'] is None:
+            kwargs['user_id'] = 'None'
+        if 'item_id' not in kwargs or kwargs['item_id'] is None:
+            kwargs['item_id'] = 'None'
         return self.analyst_prompt.format(
             examples=self.analyst_examples,
             fewshot=self.analyst_fewshot,
@@ -111,6 +131,10 @@ class Analyst(ToolAgent):
                     observation = f"Invalid user id and retrieval number: {argument}"
                     valid = False
             if valid:
+                # Enforce minimum k=10 for UserHistory to ensure sufficient data for analysis
+                if k < 10:
+                    logger.warning(f"Analyst requested k={k} for UserHistory. Enforcing minimum k=10.")
+                    k = 10
                 observation = self.interaction_retriever.user_retrieve(user_id=query_user_id, k=k)
                 log_head = f':violet[Look up UserHistory of user] :red[{query_user_id}] :violet[with at most] :red[{k}] :violet[items...]\n- '
         elif action_type.lower() == 'itemhistory':
@@ -135,6 +159,45 @@ class Analyst(ToolAgent):
             if valid:
                 observation = self.interaction_retriever.item_retrieve(item_id=query_item_id, k=k)
                 log_head = f':violet[Look up ItemHistory of item] :red[{query_item_id}] :violet[with at most] :red[{k}] :violet[users...]\n- '
+        elif action_type.lower() == 'predictrating':
+            valid = True
+            if self.json_mode:
+                if not isinstance(argument, list) or len(argument) != 2:
+                    observation = f"Invalid user id and item id: {argument}"
+                    valid = False
+                else:
+                    query_user_id, query_item_id = argument
+                    if not isinstance(query_user_id, int) or not isinstance(query_item_id, int):
+                        observation = f"Invalid user id and item id: {argument}"
+                        valid = False
+            else:
+                try:
+                    query_user_id, query_item_id = argument.split(',')
+                    query_user_id = int(query_user_id)
+                    query_item_id = int(query_item_id)
+                except ValueError or TypeError:
+                    observation = f"Invalid user id and item id: {argument}"
+                    valid = False
+            if valid:
+                observation = self.rating_predictor.predict(user_id=query_user_id, item_id=query_item_id)
+                log_head = f':violet[Predict Rating for user] :red[{query_user_id}] :violet[and item] :red[{query_item_id}]:violet[...]\n- '
+        elif action_type.lower() == 'predictnext':
+            # Predict next items for a user using SASRec
+            try:
+                query_user_id = int(argument)
+                top_items = self.sequential_predictor.predict_next(user_id=query_user_id, top_k=5)
+                if top_items:
+                    # Get item info for top items
+                    item_names = []
+                    for item_id in top_items:
+                        item_info = self.info_retriever.item_info(item_id=item_id)
+                        item_names.append(f"{item_id}: {item_info}")
+                    observation = f"Top 5 next items for user {query_user_id}:\n" + "\n".join(item_names)
+                else:
+                    observation = f"No sequential predictions available for user {query_user_id}"
+                log_head = f':violet[Predict Next Items for user] :red[{query_user_id}]:violet[...]\n- '
+            except ValueError or TypeError:
+                observation = f"Invalid user id: {argument}"
         elif action_type.lower() == 'finish':
             observation = self.finish(results=argument)
             log_head = ':violet[Finish with results]:\n- '
@@ -149,12 +212,39 @@ class Analyst(ToolAgent):
         self._history.append(turn)
 
     def forward(self, id: int, analyse_type: str, *args: Any, **kwargs: Any) -> str:
-        assert self.system.data_sample is not None, "Data sample is not provided."
-        assert 'user_id' in self.system.data_sample, "User id is not provided."
-        assert 'item_id' in self.system.data_sample, "Item id is not provided."
-        self.interaction_retriever.reset(user_id=self.system.data_sample['user_id'], item_id=self.system.data_sample['item_id'])
+        # Handle missing data_sample (e.g. in chat mode)
+        user_id = None
+        item_id = None
+        if hasattr(self.system, 'data_sample') and self.system.data_sample:
+            user_id = self.system.data_sample.get('user_id')
+            item_id = self.system.data_sample.get('item_id')
+        
+        # Override with explicit arguments if provided (e.g. from chat)
+        if analyse_type == 'user':
+            user_id = id
+        elif analyse_type == 'item':
+            item_id = id
+        
+        # Check if extra kwargs provided user_id/item_id
+        if 'user_id' in kwargs: user_id = kwargs['user_id']
+        if 'item_id' in kwargs: item_id = kwargs['item_id']
+        
+        # If user_id/item_id are not in data_sample, they might be passed via kwargs or inferred later
+        # For now, we pass what we have. The prompt context will show "None" if missing.
+        
+        if user_id is not None and item_id is not None:
+             self.interaction_retriever.reset(user_id=user_id, item_id=item_id)
+        else:
+             # In chat mode, we might not have a specific target, so we reset with None to load full history
+             self.interaction_retriever.reset()
+             
         while not self.is_finished():
-            command = self._prompt_analyst(id=id, analyse_type=analyse_type)
+            command = self._prompt_analyst(
+                id=id, 
+                analyse_type=analyse_type,
+                user_id=user_id,
+                item_id=item_id
+            )
             self.command(command)
         if not self.finished:
             return "Analyst did not return any result."
@@ -194,6 +284,28 @@ class Analyst(ToolAgent):
                     except ValueError or TypeError:
                         observation = f"Invalid id: {id}. The id should be an integer."
                         return observation
+        # Handle 4-argument case for rating prediction: Analyse[user, 123, item, 456]
+        user_id = None
+        item_id = None
+        
+        if json_mode:
+             if isinstance(argument, list) and len(argument) == 4:
+                 if argument[0] == 'user' and argument[2] == 'item':
+                     analyse_type = 'user' # Primary type
+                     id = argument[1]
+                     user_id = argument[1]
+                     item_id = argument[3]
+                     return self(analyse_type=analyse_type, id=id, user_id=user_id, item_id=item_id)
+        else:
+             parts = argument.split(',')
+             if len(parts) == 4:
+                 t1, id1, t2, id2 = [p.strip() for p in parts]
+                 if t1 == 'user' and t2 == 'item':
+                     try:
+                         return self(analyse_type='user', id=int(id1), user_id=int(id1), item_id=int(id2))
+                     except ValueError:
+                         pass
+
         return self(analyse_type=analyse_type, id=id)
 
 if __name__ == '__main__':

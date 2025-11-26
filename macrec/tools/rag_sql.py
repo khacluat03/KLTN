@@ -1,6 +1,7 @@
 import json
 import os
 import pandas as pd
+from typing import List
 from loguru import logger
 from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
@@ -579,13 +580,48 @@ SQL Query:"""),
             return f"Không thể thực thi truy vấn hiện tại. Chi tiết: {error_message}"
         
         natural_response = self._format_natural_response(normalized_query, sql, df)
-        
+
+        # Extract item IDs if this looks like a recommendation query
+        item_ids = self._extract_item_ids_from_df(df)
+        if item_ids:
+            natural_response += f'\n\nITEM_IDS: {",".join(map(str, item_ids))}'
+
         # Cache result only if caching is enabled
         if use_cache:
             self.query_cache[query] = natural_response
-        
+
         return natural_response
-    
+
+    def _extract_item_ids_from_df(self, df: pd.DataFrame) -> List[int]:
+        """
+        Extract item IDs from DataFrame result
+        """
+        if df is None or df.empty:
+            return []
+
+        item_ids = []
+
+        # Look for columns that might contain item IDs
+        id_columns = ['item_id', 'id', 'movie_id', 'movieid', 'itemid']
+        for col in id_columns:
+            if col in df.columns:
+                # Extract numeric IDs from this column
+                for val in df[col].dropna():
+                    try:
+                        if isinstance(val, (int, float)) and val > 0:
+                            item_ids.append(int(val))
+                        elif isinstance(val, str):
+                            # Try to extract number from string
+                            import re
+                            match = re.search(r'(\d+)', val)
+                            if match:
+                                item_ids.append(int(match.group(1)))
+                    except:
+                        continue
+
+        # Remove duplicates and return
+        return list(set(item_ids))
+
     def run_sql(self, sql: str) -> str:
         """
         Execute a raw SQL query directly (skips text-to-SQL step).

@@ -1,11 +1,16 @@
+print("Importing pandas...")
 import pandas as pd
+print("Importing streamlit...")
 import streamlit as st
+print("Importing abc...")
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 from loguru import logger
 from langchain.prompts import PromptTemplate
 
+print("Importing macrec.agents...")
 from macrec.agents import Agent
+print("Importing macrec.utils...")
 from macrec.utils import is_correct, init_answer, read_json, read_prompts, get_avatar, get_color
 
 class System(ABC):

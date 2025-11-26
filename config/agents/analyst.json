@@ -12,6 +12,14 @@
         "interaction_retriever": {
             "type": "interaction",
             "config_path": "config/tools/interaction/{dataset}.json"
+        },
+        "rating_predictor": {
+            "type": "rating_predictor",
+            "config_path": "config/tools/rating_predictor/{dataset}.json"
+        },
+        "sequential_predictor": {
+            "type": "sequential_predictor",
+            "config_path": "config/tools/sequential_predictor/{dataset}.json"
         }
     }
 }

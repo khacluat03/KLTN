@@ -1,12 +1,20 @@
 import tiktoken
+print("Manager: tiktoken imported")
 from loguru import logger
+print("Manager: loguru imported")
 from transformers import AutoTokenizer
+print("Manager: transformers imported")
 from langchain.prompts import PromptTemplate
+print("Manager: langchain imported")
 
 from macrec.agents.base import Agent
+print("Manager: Agent imported")
 from macrec.llms import AnyOpenAILLM
+print("Manager: AnyOpenAILLM imported")
 from macrec.llms.gemini import AnyGeminiLLM
+print("Manager: AnyGeminiLLM imported")
 from macrec.utils import format_step, run_once
+print("Manager: utils imported")
 
 class Manager(Agent):
     """
@@ -81,6 +89,9 @@ class Manager(Agent):
         logger.debug(f'Manager Prompt: {prompt}')
 
     def _build_manager_prompt(self, **kwargs) -> str:
+        # Ensure reflections is always available
+        if 'reflections' not in kwargs:
+            kwargs['reflections'] = ''
         return self.manager_prompt.format(
             examples=self.fewshot_examples,
             **kwargs

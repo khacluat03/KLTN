@@ -37,13 +37,19 @@ def scan_dict(config: dict) -> bool:
 
 def check_json(config_path: str) -> bool:
     config = read_json(config_path)
-    if 'model_type' in config and config['model_type'] == 'opensource':
+
+    # Special case for collaborative_filtering.json - model_path is for pre-computed similarities
+    if 'collaborative_filtering' in config_path and 'model_path' in config:
+        # This is OK - it's for loading pre-computed CF models, not OpenSource models
+        pass
+    elif 'model_type' in config and config['model_type'] == 'opensource':
         assert 'model_path' in config, 'model_path is required for OpenSource models'
         st.markdown(f'`{config_path}` requires `{config["model_path"]}` models.')
         return False
-    if 'model_path' in config:
+    elif 'model_path' in config:
         st.markdown(f'`{config_path}` requires `{config["model_path"]}` models.')
         return False
+
     return scan_dict(config)
 
 def check_config(config_path: str) -> bool:

@@ -1,0 +1,25 @@
+{
+    "manager_prompt": {
+        "type": "template",
+        "content": "Solve a {task_type} task with interleaving Thought, Action, Observation steps. Thought can reason about the current situation. Action can be 3 types:\n(1) GenerateCandidates[user_id, n_candidates], which will ask another agent (called CandidateGenerator) to generate a list of candidate items (movies) for the user. n_candidates is optional, default is 50.\n(2) Rank[user_id, candidate_items, top_k], which will ask another agent (called RankingAgent) to rank the candidate items and select the top k items. candidate_items should be a list of item IDs, top_k is optional (default is 10).\n(3) Finish[response], which finishes the task and returns the response to the user.\nYou can take at most {max_step} steps.\n{examples}\n{reflections}\n\nInput:\n{input}\n{scratchpad}"
+    },
+    "manager_prompt_json": {
+        "type": "template",
+        "content": "Solve a {task_type} task with interleaving Thought, Action, Observation steps. Thought can reason about the current situation. Action can be 3 types in JSON format:\n(1) {{\"type\": \"GenerateCandidates\", \"content\": user_id}} or {{\"type\": \"GenerateCandidates\", \"content\": [user_id, n_candidates]}}, which will ask another agent (called CandidateGenerator) to generate a list of candidate items (movies) for the user. n_candidates is optional, default is 50.\n(2) {{\"type\": \"Rank\", \"content\": [user_id, candidate_items, top_k]}} or {{\"type\": \"Rank\", \"content\": {{\"user_id\": user_id, \"candidates\": candidate_items, \"top_k\": top_k}}}}, which will ask another agent (called RankingAgent) to rank the candidate items and select the top k items. candidate_items should be a list of item IDs, top_k is optional (default is 10).\n(3) {{\"type\": \"Finish\", \"content\": response}}, which finishes the task and returns the response to the user.\nYou can take at most {max_step} steps.\n{examples}\n{reflections}\n\nInput:\n{input}\n{scratchpad}"
+    },
+    "hint": {
+        "type": "raw",
+        "content": "This is the final step. You should use Finish Action to finish the task."
+    },
+    "valid_action_example": {
+        "type": "raw",
+        "content": "Finish[{finish}]\nGenerateCandidates[123]\nGenerateCandidates[123, 50]\nRank[123, [1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50], 10]"
+    },
+    "valid_action_example_json": {
+        "type": "raw",
+        "content": "{\"type\": \"finish\", \"content\": {finish}}\n{\"type\": \"generatecandidates\", \"content\": 123}\n{\"type\": \"generatecandidates\", \"content\": [123, 50]}\n{\"type\": \"rank\", \"content\": [123, [1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50], 10]}"
+    }
+}
+
+
+

@@ -1,0 +1,33 @@
+{
+    "ranking_agent_prompt": {
+        "type": "template",
+        "content": "I want you to act as a Ranking Agent and help me rank the candidate items and select the top {top_k} items for user {user_id} for the {task_type} task.\n\nCandidate items: {candidate_items}\nTotal number of candidates: {n_candidates}\n\nYou can use the following commands:\n(1) UserInfo[id], which returns the information of the user with the given id.\n(2) ItemInfo[id], which returns the information of the item with the given id.\n(3) PredictRating[user_id, item_id, method, cf_type], which predicts the rating for user_id and item_id using collaborative filtering. method can be 'pearson' or 'cosine', cf_type can be 'user_based' or 'item_based'.\n(4) Finish[result], which finishes the task and returns the ranked top {top_k} item IDs as a comma-separated list, ordered from highest to lowest predicted rating.\n\nYou can take at most {max_step} steps.\n\nValid command examples:\n{examples}\n\nHere are some examples:\n{fewshot}\n(END OF EXAMPLES)\n\nRemember you need to rank the candidate items and return the top {top_k} items for user {user_id}.\n\n{history}\n\n{hint}\nCommand: "
+    },
+    "ranking_agent_prompt_json": {
+        "type": "template",
+        "content": "I want you to act as a Ranking Agent and help me rank the candidate items and select the top {top_k} items for user {user_id} for the {task_type} task.\n\nCandidate items: {candidate_items}\nTotal number of candidates: {n_candidates}\n\nYou can use the following commands in JSON format:\n(1) {{\"type\": \"UserInfo\", \"content\": id}}, which returns the information of the user with the given id.\n(2) {{\"type\": \"ItemInfo\", \"content\": id}}, which returns the information of the item with the given id.\n(3) {{\"type\": \"PredictRating\", \"content\": [user_id, item_id, method, cf_type]}}, which predicts the rating for user_id and item_id using collaborative filtering. method can be 'pearson' or 'cosine', cf_type can be 'user_based' or 'item_based'.\n(4) {{\"type\": \"Finish\", \"content\": result}}, which finishes the task and returns the ranked top {top_k} item IDs as a list, ordered from highest to lowest predicted rating.\n\nYou can take at most {max_step} steps.\n\nValid command examples:\n{examples}\n\nHere are some examples:\n{fewshot}\n(END OF EXAMPLES)\n\nRemember you need to rank the candidate items and return the top {top_k} items for user {user_id}.\n\n{history}\n\n{hint}\nCommand: "
+    },
+    "ranking_agent_examples": {
+        "type": "raw",
+        "content": "UserInfo[123]\nPredictRating[123, 1, pearson, user_based]\nPredictRating[123, 2, pearson, user_based]\nItemInfo[1]\nItemInfo[2]\nFinish[2, 1, 5, 10, 15, 20, 25, 30, 35, 40]"
+    },
+    "ranking_agent_examples_json": {
+        "type": "raw",
+        "content": "{{\"type\": \"UserInfo\", \"content\": 123}}\n{{\"type\": \"PredictRating\", \"content\": [123, 1, \"pearson\", \"user_based\"]}}\n{{\"type\": \"PredictRating\", \"content\": [123, 2, \"pearson\", \"user_based\"]}}\n{{\"type\": \"ItemInfo\", \"content\": 1}}\n{{\"type\": \"ItemInfo\", \"content\": 2}}\n{{\"type\": \"Finish\", \"content\": [2, 1, 5, 10, 15, 20, 25, 30, 35, 40]}}"
+    },
+    "ranking_agent_fewshot": {
+        "type": "raw",
+        "content": "Suppose you need to rank candidates [1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50] for user 123 and select top 10:\nUserInfo[123]\nPredictRating[123, 1, pearson, user_based] (suppose get 4.5)\nPredictRating[123, 2, pearson, user_based] (suppose get 4.8)\nPredictRating[123, 3, pearson, user_based] (suppose get 3.2)\nItemInfo[1]\nItemInfo[2]\nFinish[2, 1, 5, 10, 15, 20, 25, 30, 35, 40]"
+    },
+    "ranking_agent_fewshot_json": {
+        "type": "raw",
+        "content": "Suppose you need to rank candidates [1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50] for user 123 and select top 10:\n{{\"type\": \"UserInfo\", \"content\": 123}}\n{{\"type\": \"PredictRating\", \"content\": [123, 1, \"pearson\", \"user_based\"]}} (suppose get 4.5)\n{{\"type\": \"PredictRating\", \"content\": [123, 2, \"pearson\", \"user_based\"]}} (suppose get 4.8)\n{{\"type\": \"PredictRating\", \"content\": [123, 3, \"pearson\", \"user_based\"]}} (suppose get 3.2)\n{{\"type\": \"ItemInfo\", \"content\": 1}}\n{{\"type\": \"ItemInfo\", \"content\": 2}}\n{{\"type\": \"Finish\", \"content\": [2, 1, 5, 10, 15, 20, 25, 30, 35, 40]}}"
+    },
+    "ranking_agent_hint": {
+        "type": "raw",
+        "content": "This is the final step. You should use Finish command to finish the task and return the ranked top items list."
+    }
+}
+
+
+

@@ -28,8 +28,6 @@ services:
         else
           echo 'database.db already exists. Skipping create_database.py.';
         fi;
-        streamlit run web_demo.py
-          --server.port=8501
-          --server.address=0.0.0.0
+        exec streamlit run web_demo.py --server.port=8501 --server.address=0.0.0.0
       "
 

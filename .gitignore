@@ -27,6 +27,7 @@ logs/
 run/
 results/
 ckpts/
+saved_models/
 config/api-config.json
 test*
 !macrec/*/test*

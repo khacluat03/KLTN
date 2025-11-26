@@ -14,10 +14,22 @@
         "Interpreter": {
             "config_path": "config/agents/interpreter.json",
             "prompt_config": "config/prompts/agent_prompt/interpreter_chat.json"
+        },
+        "Analyst": {
+            "config_path": "config/agents/analyst.json",
+            "prompt_config": "config/prompts/agent_prompt/analyst.json"
+        },
+        "CollaborativeFilteringAgent": {
+            "config_path": "config/agents/collaborative_filtering_agent.json",
+            "prompt_config": "config/prompts/agent_prompt/collaborative_filtering.json"
+        },
+        "SequentialRecommendationAgent": {
+            "config_path": "config/agents/sequential_recommendation_agent.json",
+            "prompt_config": "config/prompts/agent_prompt/sequential_recommendation.json"
         }
     },
-    "agent_prompt": "config/prompts/manager_prompt/chat.json",
+    "agent_prompt": "config/prompts/manager_prompt/reflect_analyse_search_interpret.json",
     "data_prompt": "config/prompts/data_prompt/{task}.json",
-    "max_step": 1,
+    "max_step": 5,
     "require_search_before_finish": true
 }

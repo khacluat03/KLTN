@@ -1,10 +1,11 @@
 {
     "model_type": "openai",
     "model_name": "gpt-4o-mini",
-    "temperature": 0.4,
+    "temperature": 0.1,
     "max_tokens": 1024,
-    "json_mode": true,
-    "max_turns": 15,
+    "json_mode": false,
+    "default_top_k": 5,
+    "max_turns": 8,
     "tool_config": {
         "info_retriever": {
             "type": "info",
@@ -13,6 +14,10 @@
         "interaction_retriever": {
             "type": "interaction",
             "config_path": "config/tools/interaction/{dataset}.json"
+        },
+        "seq_tool": {
+            "type": "sequential_predictor",
+            "config_path": "config/tools/sequential_predictor/{dataset}.json"
         }
     }
 }

@@ -14,15 +14,6 @@ class ChatSystem(System):
         self.manager = Manager(thought_config_path=self.config['manager_thought'], action_config_path=self.config['manager_action'], **self.agent_kwargs)
         self.searcher = Searcher(config_path=self.config['searcher'], **self.agent_kwargs)
         self.interpreter = Interpreter(config_path=self.config['interpreter'], **self.agent_kwargs)
-        self.max_step: int = self.config.get('max_step', 6)
-        self.require_search_before_finish: bool = self.config.get('require_search_before_finish', True)
-        self.manager_kwargs = {
-            "max_step": self.max_step,
-        }
-
-    def is_halted(self) -> bool:
-        return ((self.step_n > self.max_step) or self.manager.over_limit(history=self.chat_history, task_prompt=self.task_prompt, scratchpad=self.scratchpad, **self.manager_kwargs)) and not self.finished
-
     def reset(self, clear: bool = False, *args, **kwargs) -> None:
         super().reset(*args, **kwargs)
         if clear:
