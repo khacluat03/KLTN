@@ -28,6 +28,7 @@
     },
     "agent_prompt": "config/prompts/manager_prompt/reflect_analyse_search_interpret.json",
     "data_prompt": "config/prompts/data_prompt/{task}.json",
+    "dataset": "ml-100k",
     "max_step": 5,
     "require_search_before_finish": true
 }

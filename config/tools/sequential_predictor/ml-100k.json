@@ -1,0 +1,5 @@
+{
+    "model_path": "saved_models/sasrec_ml-100k.pkl",
+    "max_len": 50,
+    "device": "cpu"
+}

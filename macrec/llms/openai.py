@@ -17,7 +17,10 @@ class AnyOpenAILLM(BaseLLM):
         if json_mode and self.model_name not in ['gpt-4o-mini']:
             raise ValueError("json_mode is only available for gpt-4o-mini")
         self.max_tokens: int = kwargs.get('max_tokens', 256)
-        self.max_context_length: int = 16384 if '16k' in model_name else 32768 if '32k' in model_name else 4096
+        if 'gemini' in model_name or 'flash' in model_name or 'gpt-4o' in model_name:
+            self.max_context_length: int = 128000 # Gemini and GPT-4o have huge context
+        else:
+            self.max_context_length: int = 16384 if '16k' in model_name else 32768 if '32k' in model_name else 4096
         if model_name.split('-')[0] == 'text' or model_name == 'gpt-3.5-turbo-instruct':
             self.model = OpenAI(model_name=model_name, *args, **kwargs)
             self.model_type = 'completion'

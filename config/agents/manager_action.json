@@ -1,8 +1,10 @@
 {
     "model_type": "openai",
     "model_name": "gpt-4o-mini",
-    "temperature": 0,
+    "temperature": 0.3,
     "max_tokens": 300,
+    "model_kwargs": {
+        "stop": "\n"
+    },
     "json_mode": false
 }
-

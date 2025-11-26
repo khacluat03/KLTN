@@ -1,0 +1,21 @@
+{
+    "model_type": "gemini",
+    "model_name": "gemini-2.0-flash-exp",
+    "temperature": 0.3,
+    "max_tokens": 512,
+    "json_mode": false,
+    "tool_config": {
+        "retriever": {
+            "type": "wikipedia",
+            "config_path": "config/tools/wikipedia.json"
+        },
+        "sql_tool": {
+            "type": "rag_sql",
+            "config_path": "config/tools/rag_sql.json"
+        },
+        "cf_tool": {
+            "type": "collaborative_filtering",
+            "config_path": "config/tools/collaborative_filtering.json"
+        }
+    }
+}

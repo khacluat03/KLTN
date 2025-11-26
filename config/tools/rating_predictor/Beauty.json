@@ -1,0 +1,5 @@
+{
+    "data_path": "data/Beauty/train.csv",
+    "model_path": "saved_models/Beauty/mf_model.pkl",
+    "n_factors": 20
+}

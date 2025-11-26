@@ -1,0 +1,32 @@
+{
+    "analyst_prompt": {
+        "type": "template",
+        "content": "I want you to act as an analyst and help me analyze the given {analyse_type} {id} for the {task_type} task."
+    },
+    "analyst_prompt_json": {
+        "type": "template",
+        "content": "I want you to act as an analyst and help me analyze the given {analyse_type} {id} for the {task_type} task."
+    },
+    "analyst_examples": {
+        "type": "raw",
+        "content": "UserInfo[123]"
+    },
+    "analyst_examples_json": {
+        "type": "raw",
+        "content": "{\"type\": \"UserInfo\", \"content\": 123}"
+    },
+    "analyst_fewshot": {
+        "type": "raw",
+        "content": "Example analysis"
+    },
+    "analyst_fewshot_json": {
+        "type": "raw",
+        "content": "{\"type\": \"Finish\", \"content\": \"Done\"}"
+    },
+    "analyst_hint": {
+        "type": "raw",
+        "content": "This is the final step."
+    }
+}
+
+

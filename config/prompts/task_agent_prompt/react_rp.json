@@ -1,4 +1,12 @@
 {
+    "manager_prompt": {
+        "type": "template",
+        "content": "You are a manager agent. The system will provide the prefix 'Action n:'. You must complete it by outputting ONLY 'Finish[<rating>]'.\n\nProcess:\n1. (Thought phase) Analyze user history.\n2. (Action phase) Output 'Finish[<rating>]'.\n\nRating is 1.0 to 5.0.\n\n{examples}\nInput:\n{input}\n{scratchpad}"
+    },
+    "fewshot_examples": {
+        "type": "raw",
+        "content": "\nExample:\nInput: [user_id]: user_example ...\nThought 1: The user loves dramatic and animated movies.\nFinish[4.2]"
+    },
     "valid_action_example": {
         "type": "raw",
         "content": "Finish[4.0]"

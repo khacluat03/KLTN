@@ -12,14 +12,14 @@
     "require_search_before_finish": true,
     "tools": {
         "summarize": {
-            "model_type": "gemini",
-            "model_name": "gemini-2.0-flash-exp",
+            "model_type": "openai",
+            "model_name": "gpt-4o-mini",
             "temperature": 0.7,
             "max_tokens": 1024
         },
         "explain": {
-            "model_type": "gemini", 
-            "model_name": "gemini-2.0-flash-exp",
+            "model_type": "openai",
+            "model_name": "gpt-4o-mini",
             "temperature": 0.7,
             "max_tokens": 1024
         }

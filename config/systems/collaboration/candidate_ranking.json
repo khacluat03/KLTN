@@ -1,0 +1,29 @@
+{
+    "supported_tasks": [
+        "rp",
+        "sr",
+        "gen",
+        "chat"
+    ],
+    "agents": {
+        "Manager": {
+            "action_config_path": "config/agents/manager_action.json",
+            "thought_config_path": "config/agents/manager_thought.json"
+        },
+        "CandidateGenerator": {
+            "config_path": "config/agents/candidate_generator.json",
+            "prompt_config": "config/prompts/agent_prompt/candidate_generator.json"
+        },
+        "RankingAgent": {
+            "config_path": "config/agents/ranking_agent.json",
+            "prompt_config": "config/prompts/agent_prompt/ranking_agent.json"
+        }
+    },
+    "agent_prompt": "config/prompts/manager_prompt/candidate_ranking.json",
+    "data_prompt": "config/prompts/data_prompt/{task}.json",
+    "max_step": 10,
+    "require_search_before_finish": false
+}
+
+
+

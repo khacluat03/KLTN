@@ -1,0 +1,10 @@
+{
+  "data_path": "data/ml-100k/train.csv",
+  "model_path": "saved_models/ml-100k",
+  "min_common_items": 1,
+  "min_common_users": 1,
+  "k_neighbors": 50
+}
+
+
+

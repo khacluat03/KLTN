@@ -6,7 +6,7 @@ from langchain.prompts import PromptTemplate
 
 from macrec.llms import BaseLLM, AnyOpenAILLM, OpenSourceLLM
 from macrec.llms.gemini import AnyGeminiLLM
-from macrec.tools import TOOL_MAP, Tool
+from macrec.tools.base import Tool
 from macrec.utils import run_once, format_history, read_prompts, apply_provider_overrides
 
 if TYPE_CHECKING:
@@ -124,6 +124,7 @@ class ToolAgent(Agent):
         raise NotImplementedError("Agent.required_tools() not implemented")
 
     def get_tools(self, tool_config: dict[str, dict]):
+        from macrec.tools import TOOL_MAP
         assert isinstance(tool_config, dict), 'Tool config must be a dictionary.'
         for tool_name, tool in tool_config.items():
             assert isinstance(tool, dict), 'Config of each tool must be a dictionary.'

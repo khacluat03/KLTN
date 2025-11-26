@@ -1,0 +1,23 @@
+{
+    "model_type": "openai",
+    "model_name": "gpt-4o-mini",
+    "temperature": 0.1,
+    "max_tokens": 1024,
+    "json_mode": false,
+    "default_top_k": 10,
+    "max_turns": 8,
+    "tool_config": {
+        "info_retriever": {
+            "type": "info",
+            "config_path": "config/tools/info_database/{dataset}.json"
+        },
+        "interaction_retriever": {
+            "type": "interaction",
+            "config_path": "config/tools/interaction/{dataset}.json"
+        },
+        "cf_tool": {
+            "type": "collaborative_filtering",
+            "config_path": "config/tools/collaborative_filtering.json"
+        }
+    }
+}

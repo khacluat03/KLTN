@@ -1,0 +1,7 @@
+{
+    "data_path": "data/ml-100k/train.csv",
+    "cf_type": "user_based",
+    "similarity_method": "pearson",
+    "k_neighbors": 50,
+    "min_common_items": 5
+}
