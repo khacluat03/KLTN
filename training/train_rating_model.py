@@ -23,7 +23,13 @@ from macrec.systems.methods.matrix_factorization import MatrixFactorization
 def main():
     # Configuration for ml-100k dataset
     data_path = os.path.join('data', 'ml-100k', 'train.csv')
-    model_path = os.path.join('saved_models', 'ml-100k', 'mf_model.pkl')
+    
+    # Ensure saved_models/ml-100k directory exists
+    model_dir = Path('saved_models') / 'ml-100k'
+    model_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Model path - always saved to saved_models/ml-100k/mf_model.pkl
+    model_path = str(model_dir / 'mf_model.pkl')
     n_factors = 50  # Number of latent factors
     
     # Check if data file exists
@@ -59,6 +65,7 @@ def main():
         logger.info(f"Saving model to {model_path}...")
         model.save(model_path)
         logger.info("✓ Model trained and saved successfully")
+        logger.info(f"✓ Model directory verified: {model_dir.absolute()}")
     
     # Test prediction with sample user/item
     # Use first user and first item from the model's known IDs
