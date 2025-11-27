@@ -122,6 +122,7 @@ def main():
     
     try:
         cf_tool = CollaborativeFiltering(config_path=temp_config_path)
+        cf_tool._ensure_matrix_built()
         logger.info(f"✓ Data loaded: {len(cf_tool.data)} interactions")
         logger.info(f"  - Users: {len(cf_tool.rating_matrix.index)}")
         logger.info(f"  - Items: {len(cf_tool.rating_matrix.columns)}")
@@ -223,6 +224,7 @@ def test_existing_models(data_path, output_dir):
 
     try:
         cf_tool = CollaborativeFiltering(config_path=temp_config_path)
+        cf_tool._ensure_matrix_built()
         logger.info(f"✓ CF tool initialized with pre-computed models")
         logger.info(f"  - Data loaded: {len(cf_tool.data)} interactions")
         logger.info(f"  - Users: {len(cf_tool.rating_matrix.index)}")
