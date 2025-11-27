@@ -10,6 +10,7 @@ services:
       - ./data:/app/data
       - ./config:/app/config
       - ./create_database.py:/app/create_database.py
+      - ./saved_models:/app/saved_models
     environment:
       - PYTHONPATH=/app
       - DATASET=ml-100k

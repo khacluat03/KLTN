@@ -13,3 +13,9 @@ python main.py -m RLHFTraining --config_path config/training/ppo-main.json --epo
 # 2.2 Dataset: beauty
 # python main.py -m RLHFTraining --config_path config/training/ppo-main.json --epochs 1 --data_file data/ppo/sr/Beauty-reflection.jsonl
 # python main.py -m RLHFTraining --config_path config/training/ppo-main.json --epochs 1 --data_file data/ppo/sr/Beauty-v1.jsonl --model_path ckpts/xxxx/epoch-0
+
+
+docker exec macrec python training/train_rating_model.py
+docker exec macrec python training/train_cf_model.py
+docker exec macrec python training/evaluate_cf_model.py
+docker exec macrec python training/evaluate_rating_model.py
