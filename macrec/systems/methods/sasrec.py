@@ -133,8 +133,8 @@ class AttentionBlock(nn.Module):
         self.layer_norm2 = nn.LayerNorm(hidden_size)
         
     def forward(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        # Self-attention with residual
-        attn_out, _ = self.attention(x, x, x, attn_mask=~mask.squeeze(1).squeeze(1))
+        # Self-attention with residual (no explicit mask, use causal attention)
+        attn_out, _ = self.attention(x, x, x, need_weights=False)
         x = self.layer_norm1(x + attn_out)
         
         # Feed-forward with residual
@@ -142,6 +142,7 @@ class AttentionBlock(nn.Module):
         x = self.layer_norm2(x + ff_out)
         
         return x
+
 
 
 class SASRecTrainer:
@@ -241,7 +242,16 @@ class SASRecTrainer:
             
             # Fill tensors
             seq_len = len(seq)
-            seq_tensor[i, :seq_len] = torch.tensor(seq[:-1] if seq_len > 1 else [0], dtype=torch.long)
+            
+            # Input sequence (all items except last)
+            if seq_len > 1:
+                input_seq = seq[:-1]
+                seq_tensor[i, :len(input_seq)] = torch.tensor(input_seq, dtype=torch.long)
+            else:
+                # If sequence has only 1 item, use padding
+                seq_tensor[i, 0] = 0
+            
+            # Target sequence (all items)
             pos_tensor[i, :seq_len] = torch.tensor(seq, dtype=torch.long)
             
             # Negative sampling

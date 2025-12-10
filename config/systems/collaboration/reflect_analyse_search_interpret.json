@@ -24,11 +24,14 @@
         "Interpreter": {
             "config_path": "config/agents/interpreter.json",
             "prompt_config": "config/prompts/agent_prompt/interpreter.json"
+        },
+        "CollaborativeFilteringAgent": {
+            "config_path": "config/agents/collaborative_filtering_agent.json"
         }
     },
     "agent_prompt": "config/prompts/manager_prompt/reflect_analyse_search_interpret.json",
     "data_prompt": "config/prompts/data_prompt/{task}.json",
     "dataset": "ml-100k",
-    "max_step": 5,
+    "max_step": 10,
     "require_search_before_finish": true
 }

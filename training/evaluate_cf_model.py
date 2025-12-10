@@ -22,7 +22,7 @@ import pickle
 from loguru import logger
 
 # Add project root to path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import directly from the module to avoid circular import
 from macrec.tools.collaborative_filtering import CollaborativeFiltering
@@ -44,6 +44,7 @@ def load_cf_tool_with_matrices(cf_dir, data_path):
     # Create temporary config
     cf_config = {
         'data_path': data_path,
+        'model_path': os.path.join('saved_models', 'ml-100k'),
         'min_common_items': 2,
         'min_common_users': 2,
         'k_neighbors': 50
@@ -106,6 +107,10 @@ def main():
     # Load CF tool with pre-computed matrices
     logger.info("\n[1] Loading CF models...")
     cf_tool = load_cf_tool_with_matrices(cf_dir, data_path)
+    
+    # Ensure matrix is built (in case loading metadata failed)
+    cf_tool._ensure_matrix_built()
+    
     logger.info(f"✓ CF models loaded")
     logger.info(f"  - Users: {len(cf_tool.rating_matrix.index)}")
     logger.info(f"  - Items: {len(cf_tool.rating_matrix.columns)}")

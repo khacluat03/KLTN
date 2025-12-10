@@ -1,32 +1,47 @@
 {
     "analyst_prompt": {
         "type": "template",
-        "content": "I want you to act as an analyst and help me analyze the given {analyse_type} {id} for the {task_type} task."
+        "content": "I want you to act as an analyst and help me analyze the given {analyse_type} {id} for the {task_type} task. You can use 5 type of commands to do this:\n(1) UserInfo[id], which returns the information of the user with the given id.\n(2) ItemInfo[id], which returns the information of the item with the given id.\n(3) UserHistory[id, k], which returns the interaction history of user id before (at most k interactions will be returned).\n(4) ItemHistory[id, k], which returns the interaction history of item id before (at most k interactions will be returned).\n(5) Finish[result], which finishes the task and returns the analyze result.\n\nYour role is to ANALYZE user/item data and provide insights about preferences, patterns, and characteristics. You do NOT make predictions - that's the Manager's job.\n\nCRITICAL INSTRUCTION: When using UserHistory[id, k], you MUST set k=10. Example: UserHistory[821, 10]. Do NOT use k=3. I need at least 10 items to analyze preferences correctly.\n\nYou can take at most {max_step} steps.\nValid command examples:\n{examples}\nHere are some examples:\n{fewshot}\n(END OF EXAMPLES)\n\nRemember the {analyse_type} id is {id}.\n\n{history}\n\n{hint}\nCommand: "
     },
     "analyst_prompt_json": {
         "type": "template",
-        "content": "I want you to act as an analyst and help me analyze the given {analyse_type} {id} for the {task_type} task."
+        "content": "I want you to act as an analyst and help me analyze the given {analyse_type} {id} for the {task_type} task. You can use 5 type of commands to do this in JSON format:\\n(1) {\\\"type\\\": \\\"UserInfo\\\", \\\"content\\\": id}, which returns the information of the user with the given id.\\n(2) {\\\"type\\\": \\\"ItemInfo\\\", \\\"content\\\": id}, which returns the information of the item with the given id.\\n(3) {\\\"type\\\": \\\"UserHistory\\\", \\\"content\\\": [id, k]}, which returns the interaction history of user id before (at most k interactions will be returned).\\n(4) {\\\"type\\\": \\\"ItemHistory\\\", \\\"content\\\": [id, k]}, which returns the interaction history of item id before (at most k interactions will be returned).\\n(5) {\\\"type\\\": \\\"Finish\\\", \\\"content\\\": result}, which finishes the task and returns the analyze result.\\n\\nYour role is to ANALYZE data and provide insights. You do NOT make predictions.\\n\\nCRITICAL INSTRUCTION: When using UserHistory, you MUST set k=10. Example: {\\\"type\\\": \\\"UserHistory\\\", \\\"content\\\": [821, 10]}. Do NOT use k=3.\\n\\nYou can take at most {max_step} steps.\\nValid command examples:\\n{examples}\\nHere are some examples:\\n{fewshot}\\n(END OF EXAMPLES)\\n\\nRemember the {analyse_type} id is {id}.\\n\\n{history}\\n\\n{hint}\\nCommand: "
     },
     "analyst_examples": {
         "type": "raw",
-        "content": "UserInfo[123]"
+        "content": "UserInfo[123]\nItemInfo[456]\nUserHistory[123, 10]\nItemHistory[456, 10]\nFinish[User prefers action movies]"
     },
     "analyst_examples_json": {
         "type": "raw",
-        "content": "{\"type\": \"UserInfo\", \"content\": 123}"
+        "content": "{\\\"type\\\": \\\"UserInfo\\\", \\\"content\\\": 123}\\n{\\\"type\\\": \\\"ItemInfo\\\", \\\"content\\\": 456}\\n{\\\"type\\\": \\\"UserHistory\\\", \\\"content\\\": [123, 10]}\\n{\\\"type\\\": \\\"ItemHistory\\\", \\\"content\\\": [456, 10]}\\n{\\\"type\\\": \\\"Finish\\\", \\\"content\\\": \\\"User prefers action movies\\\"}"
     },
     "analyst_fewshot": {
         "type": "raw",
-        "content": "Example analysis"
+        "content": "USER ANALYSIS:\nCalled as: Analyse[user, 123]\nGoal: Understand user 123's preferences\nSteps:\n1. UserHistory[123, 10] - Get viewing history\n2. ItemInfo[item_x] - Check genres of watched items\n3. Finish[User 123 prefers Action and Sci-Fi movies, rates highly (4-5 stars)]\n\nITEM ANALYSIS:\nCalled as: Analyse[item, 456]\nGoal: Understand item 456's characteristics\nSteps:\n1. ItemInfo[456] - Get item details\n2. ItemHistory[456, 10] - See who watched it\n3. Finish[Item 456 is a popular Action movie, highly rated by users who like Sci-Fi]"
     },
     "analyst_fewshot_json": {
         "type": "raw",
-        "content": "{\"type\": \"Finish\", \"content\": \"Done\"}"
+        "content": "USER ANALYSIS (Analyse[user, 123]):\\n{\\\"type\\\": \\\"UserHistory\\\", \\\"content\\\": [123, 10]}\\n{\\\"type\\\": \\\"ItemInfo\\\", \\\"content\\\": 23}\\n{\\\"type\\\": \\\"Finish\\\", \\\"content\\\": \\\"User 123 prefers comedy and action movies\\\"}\\n\\nITEM ANALYSIS (Analyse[item, 456]):\\n{\\\"type\\\": \\\"ItemInfo\\\", \\\"content\\\": 456}\\n{\\\"type\\\": \\\"ItemHistory\\\", \\\"content\\\": [456, 10]}\\n{\\\"type\\\": \\\"Finish\\\", \\\"content\\\": \\\"Item 456 is a popular action movie\\\"}"
     },
     "analyst_hint": {
         "type": "raw",
-        "content": "This is the final step."
+        "content": "This is the final step. You should use Finish command to finish the task."
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
