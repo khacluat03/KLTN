@@ -1,5 +1,6 @@
 from typing import Any
 from loguru import logger
+import ast
 
 from macrec.agents.base import ToolAgent
 from macrec.tools.info_database import InfoDatabase
@@ -106,11 +107,22 @@ class Analyst(ToolAgent):
                 observation = f"Invalid user id: {argument}"
         elif action_type.lower() == 'iteminfo':
             try:
-                query_item_id = int(argument)
-                observation = self.info_retriever.item_info(item_id=query_item_id)
-                log_head = f':violet[Look up ItemInfo of item] :red[{query_item_id}]:violet[...]\n- '
-            except ValueError or TypeError:
-                observation = f"Invalid item id: {argument}"
+                if isinstance(argument, list):
+                    # Batch processing for list of item IDs
+                    item_ids = [int(x) for x in argument]
+                    observations = []
+                    for item_id in item_ids:
+                        info = self.info_retriever.item_info(item_id=item_id)
+                        observations.append(f"{item_id}: {info}")
+                    observation = "\n".join(observations)
+                    log_head = f':violet[Look up ItemInfo for items] :red[{item_ids}]:violet[...]\n- '
+                else:
+                    # Single item processing
+                    query_item_id = int(argument)
+                    observation = self.info_retriever.item_info(item_id=query_item_id)
+                    log_head = f':violet[Look up ItemInfo of item] :red[{query_item_id}]:violet[...]\n- '
+            except (ValueError, TypeError) as e:
+                observation = f"Invalid item id: {argument}. Error: {e}"
         elif action_type.lower() == 'userhistory':
             valid = True
             if self.json_mode:
@@ -140,7 +152,19 @@ class Analyst(ToolAgent):
         elif action_type.lower() == 'itemhistory':
             valid = True
             if self.json_mode:
-                if not isinstance(argument, list) or len(argument) != 2:
+                # Check for batch processing format: [[id1, id2, ...], k]
+                if isinstance(argument, list) and len(argument) == 2 and isinstance(argument[0], list):
+                    item_ids, k = argument
+                    observations = []
+                    for item_id in item_ids:
+                         try:
+                             info = self.interaction_retriever.item_retrieve(item_id=int(item_id), k=k)
+                             observations.append(f"Item {item_id}: {info}")
+                         except Exception as e:
+                             observations.append(f"Item {item_id}: Error {e}")
+                    observation = "\n".join(observations)
+                    log_head = f':violet[Look up ItemHistory for items] :red[{item_ids}] :violet[with at most] :red[{k}] :violet[users...]\n- '
+                elif not isinstance(argument, list) or len(argument) != 2:
                     observation = f"Invalid item id and retrieval number: {argument}"
                     valid = False
                 else:
@@ -156,7 +180,7 @@ class Analyst(ToolAgent):
                 except ValueError or TypeError:
                     observation = f"Invalid item id and retrieval number: {argument}"
                     valid = False
-            if valid:
+            if valid and not (self.json_mode and isinstance(argument, list) and len(argument) == 2 and isinstance(argument[0], list)):
                 observation = self.interaction_retriever.item_retrieve(item_id=query_item_id, k=k)
                 log_head = f':violet[Look up ItemHistory of item] :red[{query_item_id}] :violet[with at most] :red[{k}] :violet[users...]\n- '
         elif action_type.lower() == 'predictrating':
@@ -181,23 +205,28 @@ class Analyst(ToolAgent):
             if valid:
                 observation = self.rating_predictor.predict(user_id=query_user_id, item_id=query_item_id)
                 log_head = f':violet[Predict Rating for user] :red[{query_user_id}] :violet[and item] :red[{query_item_id}]:violet[...]\n- '
-        elif action_type.lower() == 'predictnext':
-            # Predict next items for a user using SASRec
-            try:
-                query_user_id = int(argument)
-                top_items = self.sequential_predictor.predict_next(user_id=query_user_id, top_k=5)
-                if top_items:
-                    # Get item info for top items
-                    item_names = []
-                    for item_id in top_items:
-                        item_info = self.info_retriever.item_info(item_id=item_id)
-                        item_names.append(f"{item_id}: {item_info}")
-                    observation = f"Top 5 next items for user {query_user_id}:\n" + "\n".join(item_names)
-                else:
-                    observation = f"No sequential predictions available for user {query_user_id}"
-                log_head = f':violet[Predict Next Items for user] :red[{query_user_id}]:violet[...]\n- '
-            except ValueError or TypeError:
-                observation = f"Invalid user id: {argument}"
+        # elif action_type.lower() == 'predictnext':
+        #     # ⚠️ DEPRECATED: PredictNext is no longer used in Analyst prompt
+        #     # Manager now calls SequentialRecommendationAgent directly for sequential recommendations
+        #     # This code is kept for backward compatibility only
+        #     # See: SequentialRecommendationAgent in macrec/agents/sequential_recommendation_agent.py
+            
+        #     # Predict next items for a user using SASRec
+        #     try:
+        #         query_user_id = int(argument)
+        #         top_items = self.sequential_predictor.predict_next(user_id=query_user_id, top_k=5)
+        #         if top_items:
+        #             # Get item info for top items
+        #             item_names = []
+        #             for item_id in top_items:
+        #                 item_info = self.info_retriever.item_info(item_id=item_id)
+        #                 item_names.append(f"{item_id}: {item_info}")
+        #             observation = f"Top 5 next items for user {query_user_id}:\n" + "\n".join(item_names)
+        #         else:
+        #             observation = f"No sequential predictions available for user {query_user_id}"
+        #         log_head = f':violet[Predict Next Items for user] :red[{query_user_id}]:violet[...]\n- '
+        #     except ValueError or TypeError:
+        #         observation = f"Invalid user id: {argument}"
         elif action_type.lower() == 'finish':
             observation = self.finish(results=argument)
             log_head = ':violet[Finish with results]:\n- '
@@ -215,7 +244,7 @@ class Analyst(ToolAgent):
         # Handle missing data_sample (e.g. in chat mode)
         user_id = None
         item_id = None
-        if hasattr(self.system, 'data_sample') and self.system.data_sample:
+        if hasattr(self.system, 'data_sample') and self.system.data_sample is not None:
             user_id = self.system.data_sample.get('user_id')
             item_id = self.system.data_sample.get('item_id')
         
@@ -232,10 +261,13 @@ class Analyst(ToolAgent):
         # If user_id/item_id are not in data_sample, they might be passed via kwargs or inferred later
         # For now, we pass what we have. The prompt context will show "None" if missing.
         
+        # For rating prediction (both user_id and item_id provided), skip interaction reset
+        # because the interaction may not exist yet (that's what we're predicting!)
         if user_id is not None and item_id is not None:
-             self.interaction_retriever.reset(user_id=user_id, item_id=item_id)
+             # Skip reset - let PredictRating handle this directly
+             pass
         else:
-             # In chat mode, we might not have a specific target, so we reset with None to load full history
+             # In chat mode or general analysis, reset with available context
              self.interaction_retriever.reset()
              
         while not self.is_finished():
@@ -251,40 +283,7 @@ class Analyst(ToolAgent):
         return self.results
 
     def invoke(self, argument: Any, json_mode: bool) -> str:
-        if json_mode:
-            if not isinstance(argument, list) or len(argument) != 2:
-                observation = "The argument of the action 'Analyse' should be a list with two elements: analyse type (user or item) and id."
-                return observation
-            else:
-                analyse_type, id = argument
-                if (isinstance(id, str) and 'user_' in id) or (isinstance(id, str) and 'item_' in id):
-                    observation = f"Invalid id: {id}. Don't use the prefix 'user_' or 'item_'. Just use the id number only, e.g., 1, 2, 3, ..."
-                    return observation
-                elif analyse_type.lower() not in ['user', 'item']:
-                    observation = f"Invalid analyse type: {analyse_type}. It should be either 'user' or 'item'."
-                    return observation
-                elif not isinstance(id, int):
-                    observation = f"Invalid id: {id}. It should be an integer."
-                    return observation
-        else:
-            if len(argument.split(',')) != 2:
-                observation = "The argument of the action 'Analyse' should be a string with two elements separated by a comma: analyse type (user or item) and id."
-                return observation
-            else:
-                analyse_type, id = argument.split(',')
-                if 'user_' in id or 'item_' in id:
-                    observation = f"Invalid id: {id}. Don't use the prefix 'user_' or 'item_'. Just use the id number only, e.g., 1, 2, 3, ..."
-                    return observation
-                elif analyse_type.lower() not in ['user', 'item']:
-                    observation = f"Invalid analyse type: {analyse_type}. It should be either 'user' or 'item'."
-                    return observation
-                else:
-                    try:
-                        id = int(id)
-                    except ValueError or TypeError:
-                        observation = f"Invalid id: {id}. The id should be an integer."
-                        return observation
-        # Handle 4-argument case for rating prediction: Analyse[user, 123, item, 456]
+        # Handle 4-argument case for rating prediction FIRST: Analyse[user, 123, item, 456]
         user_id = None
         item_id = None
         
@@ -305,6 +304,55 @@ class Analyst(ToolAgent):
                          return self(analyse_type='user', id=int(id1), user_id=int(id1), item_id=int(id2))
                      except ValueError:
                          pass
+        
+        # Handle standard 2-argument case: Analyse[user, 123] or Analyse[item, 456]
+        if json_mode:
+            if not isinstance(argument, list) or len(argument) != 2:
+                observation = "The argument of the action 'Analyse' should be a list with two elements: analyse type (user or item) and id, OR four elements for rating prediction: [user, user_id, item, item_id]."
+                return observation
+            else:
+                analyse_type, id = argument
+                if (isinstance(id, str) and 'user_' in id) or (isinstance(id, str) and 'item_' in id):
+                    observation = f"Invalid id: {id}. Don't use the prefix 'user_' or 'item_'. Just use the id number only, e.g., 1, 2, 3, ..."
+                    return observation
+                elif analyse_type.lower() not in ['user', 'item']:
+                    observation = f"Invalid analyse type: {analyse_type}. It should be either 'user' or 'item'."
+                    return observation
+                elif not isinstance(id, int):
+                    observation = f"Invalid id: {id}. It should be an integer."
+                    return observation
+        else:
+            # Try to parse list argument first for batch processing
+            try:
+                # Check for pattern "type, [list]"
+                parts = argument.split(',', 1)
+                if len(parts) == 2:
+                    analyse_type = parts[0].strip()
+                    potential_list = parts[1].strip()
+                    if potential_list.startswith('[') and potential_list.endswith(']'):
+                        id_list = ast.literal_eval(potential_list)
+                        if isinstance(id_list, list):
+                             return self(analyse_type=analyse_type, id=id_list)
+            except (ValueError, SyntaxError):
+                pass
+
+            if len(argument.split(',')) != 2:
+                observation = "The argument of the action 'Analyse' should be a string with two elements separated by a comma: analyse type (user or item) and id, OR four elements for rating prediction: user, user_id, item, item_id. For batch analysis, use: type, [id1, id2, ...]"
+                return observation
+            else:
+                analyse_type, id = argument.split(',')
+                if 'user_' in id or 'item_' in id:
+                    observation = f"Invalid id: {id}. Don't use the prefix 'user_' or 'item_'. Just use the id number only, e.g., 1, 2, 3, ..."
+                    return observation
+                elif analyse_type.lower() not in ['user', 'item']:
+                    observation = f"Invalid analyse type: {analyse_type}. It should be either 'user' or 'item'."
+                    return observation
+                else:
+                    try:
+                        id = int(id)
+                    except ValueError or TypeError:
+                        observation = f"Invalid id: {id}. The id should be an integer."
+                        return observation
 
         return self(analyse_type=analyse_type, id=id)
 

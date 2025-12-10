@@ -10,12 +10,12 @@ all_tasks = ['rp', 'sr', 'gen', 'chat']
 
 # System descriptions for better UX
 SYSTEM_DESCRIPTIONS = {
-    'ReActSystem': '🤖 LLM đơn giản (Chỉ dùng GPT/Gemini)',
-    'ReflectionSystem': '🔄 LLM + Tự phản biện',
-    'AnalyseSystem': '📊 LLM + Phân tích dữ liệu',
+    'ReActSystem': '🤖 Simple LLM (GPT/Gemini only)',
+    'ReflectionSystem': '🔄 LLM + Self-Reflection',
+    'AnalyseSystem': '📊 LLM + Data Analysis',
     'CollaborationSystem': '👥 Multi-Agent (Manager + Analyst + Searcher)',
-    'ItemKNNSystem': '🔢 Collaborative Filtering thuần túy (Không dùng LLM)',
-    'HybridSystem': '⭐ KHUYÊN DÙNG: Hybrid (MF/SASRec + LLM) cho RP/SR',
+    'ItemKNNSystem': '🔢 Pure Collaborative Filtering (No LLM)',
+    'HybridSystem': '⭐ RECOMMENDED: Hybrid (MF/SASRec + LLM) for RP/SR',
 }
 
 # Recommended configs for each system
@@ -27,9 +27,7 @@ RECOMMENDED_CONFIGS = {
 
 def get_system_label(system_class):
     """Get formatted label for system selection"""
-    name = system_class.__name__
-    desc = SYSTEM_DESCRIPTIONS.get(name, '')
-    return f"{name} - {desc}" if desc else name
+    return system_class.__name__
 
 def demo():
     api_cfg = read_json('config/api-config.json')
@@ -45,16 +43,30 @@ def demo():
         page_icon="🧠",
         layout="wide",
     )
-    st.sidebar.title('MACRec Demo')
+    st.markdown("""
+        <style>
+               .block-container {
+                    padding-top: 3rem;
+                }
+               [data-testid="stSidebar"] {
+                    padding-top: 0rem;
+                }
+               [data-testid="stSidebar"] .css-1d391kg {
+                    padding-top: 0rem;
+                }
+        </style>
+        """, unsafe_allow_html=True)
+    st.sidebar.title('Customer Product Recommendation System')
     mode = st.sidebar.radio('Mode', ['Tasks', 'Users'])
     
-    # Choose a system with descriptions
-    st.sidebar.markdown("### 🎯 Chọn Hệ thống")
-    system_type = st.sidebar.radio(
+    # Create a formatted help string with all descriptions
+    system_help = "### System Descriptions:\n\n" + "\n".join([f"- **{k}**: {v}" for k, v in SYSTEM_DESCRIPTIONS.items()])
+    
+    system_type = st.sidebar.selectbox(
         'System', 
         SYSTEMS, 
         format_func=get_system_label,
-        help="HybridSystem được khuyên dùng cho Rating Prediction (rp) và Sequential Recommendation (sr)"
+        help=system_help
     )
     
     if mode == 'Users':
@@ -63,19 +75,17 @@ def demo():
         return
     
     # For Tasks mode, get task selection first
-    st.sidebar.markdown("### 📋 Chọn Task")
     # Set 'chat' as default task (conversational recommendation)
     default_task_index = all_tasks.index('chat') if 'chat' in all_tasks else 0
-    task = st.sidebar.radio(
+    task = st.sidebar.selectbox(
         'Task',
         all_tasks,
         index=default_task_index,
         format_func=task2name,
-        help="rp: Dự đoán điểm | sr: Gợi ý tiếp theo | gen: Tạo giải thích | chat: Trò chuyện"
+        help="rp: Rating Prediction | sr: Sequential Recommendation | gen: Explanation Generation | chat: Chat"
     )
     
     # Choose the config with smart suggestions based on system and task
-    st.sidebar.markdown("### ⚙️ Chọn Cấu hình")
     config_dir = os.path.join('config', 'systems', system2dir(system_type.__name__))
     config_files = os.listdir(config_dir)
     
@@ -90,13 +100,13 @@ def demo():
     default_index = 0
     if recommended_config and recommended_config in config_files:
         default_index = config_files.index(recommended_config)
-        st.sidebar.info(f"💡 Gợi ý: `{recommended_config}` (Đã chọn tự động)")
+        st.sidebar.info(f"💡 Suggestion: `{recommended_config}` (Auto-selected)")
     
     config_file = st.sidebar.selectbox(
         'Config File', 
         config_files,
         index=default_index,
-        help="File cấu hình cho hệ thống đã chọn"
+        help="Configuration file for the selected system"
     )
     
     config = read_json(os.path.join(config_dir, config_file))
@@ -105,8 +115,8 @@ def demo():
     supported_tasks = [task for task in supported_tasks if task in system_type.supported_tasks()]
     
     if task not in supported_tasks:
-        st.error(f'❌ Task `{task2name(task)}` không được hỗ trợ bởi `{system_type.__name__}` với config `{config_file}`.')
-        st.info(f"✅ Các task được hỗ trợ: {', '.join([task2name(t) for t in supported_tasks])}")
+        st.error(f'❌ Task `{task2name(task)}` is not supported by `{system_type.__name__}` with config `{config_file}`.')
+        st.info(f"✅ Supported tasks: {', '.join([task2name(t) for t in supported_tasks])}")
         return
     
     task_config(task=task, system_type=system_type, config_path=os.path.join(config_dir, config_file))

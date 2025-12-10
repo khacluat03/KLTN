@@ -23,14 +23,31 @@ class InteractionRetriever(Tool):
             partial_data = self.data.iloc[:index]
             self.user_history = partial_data.groupby('user_id')['item_id'].apply(list).to_dict()
             self.user_rating = partial_data.groupby('user_id')['rating'].apply(list).to_dict()
+            self.user_timestamp = partial_data.groupby('user_id')['timestamp'].apply(list).to_dict()
             self.item_history = partial_data.groupby('item_id')['user_id'].apply(list).to_dict()
             self.item_rating = partial_data.groupby('item_id')['rating'].apply(list).to_dict()
         else:
             # In chat mode or when no specific target is set, we load the full history
             self.user_history = self.data.groupby('user_id')['item_id'].apply(list).to_dict()
             self.user_rating = self.data.groupby('user_id')['rating'].apply(list).to_dict()
+            self.user_timestamp = self.data.groupby('user_id')['timestamp'].apply(list).to_dict()
             self.item_history = self.data.groupby('item_id')['user_id'].apply(list).to_dict()
             self.item_rating = self.data.groupby('item_id')['rating'].apply(list).to_dict()
+
+    def user_retrieve_data(self, user_id: int, k: int) -> list[tuple]:
+        """
+        Retrieve raw user history data as a list of (item_id, rating, timestamp) tuples.
+        """
+        if self.user_history is None:
+            raise ValueError('User history not found. Please reset the user_id and item_id.')
+        if user_id not in self.user_history:
+            return []
+        
+        items = self.user_history[user_id][-k:]
+        ratings = self.user_rating[user_id][-k:]
+        timestamps = self.user_timestamp[user_id][-k:]
+        
+        return list(zip(items, ratings, timestamps))
 
     def user_retrieve(self, user_id: int, k: int, *args, **kwargs) -> str:
         if self.user_history is None:

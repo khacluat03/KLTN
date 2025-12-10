@@ -18,6 +18,10 @@ import os
 import pandas as pd
 import numpy as np
 from loguru import logger
+import sys
+
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from macrec.systems.methods.matrix_factorization import MatrixFactorization
 
