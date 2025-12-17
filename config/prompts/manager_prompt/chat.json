@@ -1,46 +1,26 @@
 {
     "manager_prompt": {
         "type": "template",
-        "content": "You are a helpful assistant. Solve a {task_type} task with interleaving Thought, Action, Observation steps.\n\nIMPORTANT: Each step requires BOTH a Thought AND an Action. You cannot skip the Action step.\n\nThought: Reason about the current situation and plan what to do next.\nAction: Must be EXACTLY one of these 3 formats (NO extra text like 'Action:' or 'Action'):\n(1) Search[requirements] - call the Searcher agent. You MUST call Search at least once before any Finish. Pass a natural-language request describing what you need (e.g., \"top 5 users who watched movie Twister\", \"list all items in category X\"). DO NOT write SQL queries yourself - the Searcher will handle SQL generation automatically.\n(2) Analyse[user/item, id] OR Analyse[user, user_id, item, item_id] - call the Analyst agent. Use Analyse[user/item, id] for general analysis (e.g., \"Analyse[user, 123]\"). Use Analyse[user, user_id, item, item_id] specifically for predicting the rating a user would give to an item (e.g., \"Analyse[user, 123, item, 456]\").\n(3) Finish[response] - finish the task and return response to user, ONLY after at least one Search or Analyse has been executed.\n\nCRITICAL RULES:\n- If you mention Search in your Thought, your Action MUST be Search[...], not Finish[...]\n- You CANNOT Finish without first executing at least one Search or Analyse action\n- Action must be ONLY the format ActionType[content], nothing else\n- Do NOT write Action in your Thought - write it in the Action step\n- For database queries, use natural language in Search[...], NOT SQL. Example: Search[top 5 users who watched movie Twister] NOT Search[SELECT ...]
-- CRITICAL: Once you receive Search results with movie recommendations, you MUST immediately Finish with your response. DO NOT call Search, Analyse, or any other agent again.
-- After getting Search results, your next action should ALWAYS be Finish[your detailed response]\n\nMOVIE RECOMMENDATION FORMAT (STRICT STRUCTURE REQUIRED):\n- When recommending movies, ALWAYS include DETAILED descriptions of each movie including:\n  * Brief plot summary (2-3 sentences)\n  * Main genre and sub-genres\n  * Key actors/actresses\n  * Why this movie would appeal to the user (CRITICALLY IMPORTANT: BASE THIS STRICTLY ON ANALYST'S ANALYSIS!)\n  * Any notable awards or critical reception\n- NEVER just list movie titles or IDs - always provide rich, engaging descriptions\n- Use natural, conversational language when describing movies
-When using Finish[response], your response MUST follow this EXACT 4-part structure:
-
-1. **USER PREFERENCE SUMMARY** (1-2 sentences only):
-   - Summarize user's tastes based STRICTLY on Analyst's findings
-   - Example: "Dựa trên lịch sử rating, user 123 có xu hướng thích các phim chất lượng cao, nội dung cảm xúc hoặc có chiều sâu, đặc biệt là thể loại Drama."
-
-2. **5 MOVIE RECOMMENDATIONS** (numbered list, properly formatted):
-   - Select EXACTLY 5 movies from the Search results
-   - Format each as:
-     **Movie Title (Year)** - Genre
-     - Summary: Brief 1-2 sentence plot summary
-     - Reason: Why it matches user's preferences (cite Analyst's findings)
-
-3. **SELECTION CRITERIA** (why these 5 from 30):
-   - Explain selection: "5 phim này được chọn vì: có rating trung bình rất cao trong danh sách 30 phim đề xuất; chưa được user xem/rate; phù hợp với sở thích thể loại Drama/Action mà user từng đánh giá cao dựa trên phân tích của Analyst."
-
-4. **FRIENDLY CLOSING** (1 engaging sentence):
-   - Example: "Chúc bạn có trải nghiệm xem phim thật tuyệt! Nếu bạn muốn gợi ý theo thể loại cụ thể hơn, mình có thể tinh chỉnh thêm."
-
-CRITICAL: You MUST base ALL recommendations strictly on Analyst's findings
-- If Analyst says user likes "Action, Drama", ONLY recommend movies in Action/Drama genres
-- NEVER recommend movies that don't match Analyst's identified preferences\n\nExamples:\nThought 1: I need to find users who watched Copycat. I should search the database.\nAction 1: Search[users who watched movie Copycat]\n\nThought 2: The user wants to know if user 123 likes item 456. I should predict the rating.\nAction 2: Analyse[user, 123, item, 456]\n\nThought 3: User wants movie recommendations. I need to search for suitable movies and provide detailed descriptions.\nAction 3: Search[find 5 great movies with detailed plot summaries, genres, and actors]\n\nVietnamese examples: Search[top 5 user đã xem phim Twister], Search[nhà hàng ngon ở Hà Nội], Analyse[user, 123], Finish[1. **TÓM TẮT SỞ THÍCH USER**: Dựa trên phân tích của Analyst, user 123 thích phim chất lượng cao, đặc biệt là thể loại Drama với nội dung cảm xúc sâu sắc. 2. **5 PHIM GỢI Ý**: 1. **Schindler's List (1993)** - Drama/War - Summary: Phim kể về Oskar Schindler và nỗ lực cứu sống hơn 1000 người Do Thái trong Thế chiến II. - Reason: Phù hợp với sở thích drama và character development từ Analyst. 2. **Pather Panchali (1955)** - Drama - Summary: Câu chuyện về cuộc sống của một cậu bé và gia đình ở vùng nông thôn Ấn Độ. - Reason: Aligns with preference for emotionally resonant narratives. 3. **SELECTION CRITERIA**: 5 phim này được chọn vì có rating trung bình rất cao trong danh sách 30 phim đề xuất; chưa được user xem; phù hợp với sở thích Drama/Action dựa trên Analyst. 4. **KẾT THÚC**: Chúc bạn có trải nghiệm xem phim thật tuyệt vời!]\n\nYou can take at most {max_step} steps. You will be given task requirements and conversation history.\n{examples}\nTask Requirements: {task_prompt}\n\nConversation History:{history}\n{scratchpad}"
+        "content": "Solve a {task_type} task with interleaving Thought, Action, Observation steps. \n\nFORMAT SELECTION LOGIC:\nIF User asks to PREDICT RATING (e.g. \"Does User X like Y?\") -> USE [FORMAT B].\nIF User asks for RECOMMENDATIONS -> USE [FORMAT A].\n\n[FORMAT A] RECOMMENDATIONS:\n1. USER PREFERENCE SUMMARY\n2. 5 MOVIE RECOMMENDATIONS:\n   - Title (Year)\n   - Summary: Write exactly 5 detailed sentences covering plot, key characters, and leading actors. Describe the main conflict.\n   - Reason: ...\n3. SELECTION CRITERIA\n4. FRIENDLY CLOSING\n\n[FORMAT B] RATING PREDICTION:\n1. USER ANALYSIS\n2. MOVIE ANALYSIS:\n   - Target Movie: Title (Year)\n   - Summary: **Write exactly 5 detailed sentences** covering the plot, key characters, and leading actors. Describe the main conflict.\n3. PREDICTED RATING\n\nFORMATTING RULES:\n- Use \"\\n\" explicitly for new lines.\n- Use \"\\n\\n\" (DOUBLE NEWLINE) to separate paragraphs.\n- Do NOT output a single wall of text.\n- Use **Bold** for emphasis.\n\nYou can take at most {max_step} steps. You will be given a task requirements generated by Task Interpreter (another agent) and the conversation history.\n{examples}\nTask Requirements: {task_prompt}\n\nConversation History:{history}\n{scratchpad}"
     },
     "manager_prompt_json": {
         "type": "template",
-        "content": "Solve a {task_type} task with interleaving Thought, Action, Observation steps. Thought can reason about the current situation. Action can be 3 types in JSON format:\n(1) {{\"type\": \"Search\", \"content\": natural_language_query}}, which will ask another agent (called Searcher) to help search. Use natural language to describe what you need (e.g., \"top 5 users who watched movie Twister\"). DO NOT write SQL queries - the Searcher will handle SQL generation automatically.\n(2) {{\"type\": \"Analyse\", \"content\": [\"user/item\", id]}} OR {{\"type\": \"Analyse\", \"content\": [\"user\", user_id, \"item\", item_id]}}, which will ask another agent (called Analyst) to help analyse. Use [\"user/item\", id] for general analysis. Use [\"user\", user_id, \"item\", item_id] for predicting rating (e.g., {{\"type\": \"Analyse\", \"content\": [\"user\", 123, \"item\", 456]}}).\n(3) {{\"type\": \"Finish\", \"content\": response}}, which finishes the task and returns the response to the user (only allowed after Search or Analyse has been used).\nYou can take at most {max_step} steps. You will be given a task requirements generated by Task Interpreter (another agent) and the conversation history.\n{examples}\nTask Requirements: {task_prompt}\n\nConversation History:{history}\n{scratchpad}"
+        "content": "Solve a {task_type} task with interleaving Thought, Action, Observation steps. \n\nFORMAT SELECTION LOGIC:\nIF User asks to PREDICT RATING (e.g. \"Does User X like Y?\") -> USE [FORMAT B].\nIF User asks for RECOMMENDATIONS -> USE [FORMAT A].\n\n[FORMAT A] RECOMMENDATIONS:\n1. USER PREFERENCE SUMMARY\n2. 5 MOVIE RECOMMENDATIONS:\n   - Title (Year)\n   - Summary: Write exactly 5 detailed sentences covering plot, key characters, and leading actors. Describe the main conflict.\n   - Reason: ...\n3. SELECTION CRITERIA\n4. FRIENDLY CLOSING\n\n[FORMAT B] RATING PREDICTION:\n1. USER ANALYSIS\n2. MOVIE ANALYSIS:\n   - Target Movie: Title (Year)\n   - Summary: **Write exactly 5 detailed sentences** covering the plot, key characters, and leading actors. Describe the main conflict.\n3. PREDICTED RATING\n\nFORMATTING RULES:\n- Use \"\\n\" explicitly for new lines.\n- Use \"\\n\\n\" (DOUBLE NEWLINE) to separate paragraphs.\n- Do NOT output a single wall of text.\n- Use **Bold** for emphasis.\n\nYou can take at most {max_step} steps. You will be given a task requirements generated by Task Interpreter (another agent) and the conversation history.\n{examples}\nTask Requirements: {task_prompt}\n\nConversation History:{history}\n{scratchpad}"
     },
     "hint": {
         "type": "raw",
-        "content": "This is the final step. However, you MUST have called Search[...] at least once before using Finish. If you haven't searched yet, use Search[<your query or SQL>] now, then Finish with the results."
+        "content": "This is the final step. You should use Finish Action to finish the task."
+    },
+    "reflections": {
+        "type": "raw",
+        "content": "REFLECTION: ..."
     },
     "valid_action_example": {
         "type": "raw",
-        "content": "Search[best romance movies 1978]\nSearch[nhà hàng ngon ở Hà Nội]\nSearch[top 5 users who watched movie Twister]\nAnalyse[user, 123]\nAnalyse[item, 456]\nFinish[Based on my research, here are the top recommendations...]\nFinish[Đây là những gợi ý tốt nhất của tôi...]\n\nWRONG: Action: Search[movies] or Search[SELECT ...]\nCORRECT: Search[movies] or Search[top 5 users who watched movie X]"
+        "content": "Action 1: Finish[1. **USER PREFERENCE SUMMARY**: Summary here.\\n\\n2. **5 MOVIE RECOMMENDATIONS**:\\n1. **Movie A (2000)** - Genre\\n   - Summary: Detailed summary.\\n   - Reason: Reason here.\\n\\n3. **FRIENDLY CLOSING**: Enjoy!]"
     },
     "valid_action_example_json": {
         "type": "raw",
-        "content": "{\"type\": \"search\", \"content\": \"best restaurants in Tokyo\"}\n{\"type\": \"search\", \"content\": \"top 5 users who watched movie Twister\"}\n{\"type\": \"search\", \"content\": \"users who watched movie Copycat\"}\n{\"type\": \"finish\", \"content\": \"Here are my recommendations...\"}"
+        "content": "..."
     }
 }

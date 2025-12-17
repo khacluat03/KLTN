@@ -66,7 +66,7 @@ def chat_page(system: ChatSystem | CollaborationSystem) -> None:
     for chat in st.session_state.chat_history:
         if isinstance(chat['message'], str):
             # Clean message to ensure newlines are rendered correctly
-            clean_message = chat['message'].replace('\\n', '\n')
+            clean_message = chat['message'].replace('\\n', '\n').replace('\n', '  \n')
             st.chat_message(chat['role']).markdown(clean_message)
         elif isinstance(chat['message'], list):
             with st.chat_message(chat['role']):
