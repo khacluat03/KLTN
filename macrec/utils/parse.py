@@ -18,20 +18,48 @@ def parse_action(action: str, json_mode: bool = False) -> tuple[str, Any]:
             json_action = json.loads(action)
             return json_action['type'], json_action['content']
         except Exception:
-            return 'Invalid', None
-    else:
-        if not isinstance(action, str):
-            return 'Invalid', None
-        action = action.strip()
-        pattern = r'^(\w+)\[(.*)\]$'
-        match = re.match(pattern, action, re.DOTALL)
+            # Fallback to text parsing if JSON fails (e.g. model outputs Thought trace + Action)
+            pass
+    if not isinstance(action, str):
+        return 'Invalid', None
+    action = action.strip()
+    
+    # Priority 1: Standard Start-Anchored Match (ActionType[Content])
+    pattern_std = r'^(\w+)\[(.*)\]'
+    match = re.match(pattern_std, action, re.DOTALL)
+    if match:
+        return match.group(1), match.group(2)
+        
+    # Priority 2: Finish Action anywhere in the string (Robustness for long context)
+    # Often the model writes "Thought: ... Action: Finish[...]" in one block
+    if 'Finish[' in action:
+        # Find the LAST occurrence of Finish[ to capture the action
+        # Allow MISSING closing bracket (truncation)
+        pattern_finish = r'(Finish)\[(.*)' 
+        matches = re.findall(pattern_finish, action, re.DOTALL)
+        if matches:
+             # matches is list of tuples (Type, Content). Take the last one.
+             action_type, content = matches[-1]
+             # Strip trailing bracket if it exists (greedy match might have kept it)
+             if content.strip().endswith(']'):
+                 content = content.strip()[:-1]
+             return action_type, content
+    
+    # Priority 3: Try to find any ActionType[...] pattern
+    # This catches cases where there is prefix text like "Action 1: Search[...]"
+    pattern_loose = r'(\w+)\[(.*)\]'
+    matches = re.findall(pattern_loose, action, re.DOTALL)
+    if matches:
+         # Heuristic: Check common action types
+         valid_types = ['Search', 'Analyse', 'Finish', 'CF', 'Sequential', 'Reflect']
+         for act_type, content in reversed(matches): # Look from end
+             if act_type in valid_types:
+                 return act_type, content
+         
+         # If no known type, just return the last match
+         return matches[-1][0], matches[-1][1]
 
-        if match:
-            action_type = match.group(1)
-            argument = match.group(2)
-            return action_type, argument
-        else:
-            return 'Invalid', None
+    return 'Invalid', None
 
 def parse_raw_answer(answer: str, *args, **kwargs) -> dict[str, bool | str]:
     return {

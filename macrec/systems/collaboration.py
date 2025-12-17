@@ -442,22 +442,80 @@ class CollaborationSystem(System):
                     observation = 'Analyst[user] blocked: This is a GENERIC recommendation without user context. You cannot analyze a user without a specific user_id. For generic "best" recommendations, use Search results directly and call Finish.'
                     log_head = ':violet[Analyst blocked - generic query]:\n- '
                 else:
-                    # Extract user_id from argument for personalization
+                    # Extract user_id and item_id from argument
+                    current_item_id = None
+                    
                     if self.manager.json_mode:
-                        if isinstance(argument, list) and len(argument) >= 2:
-                            if argument[0].lower() == 'user':
-                                self._current_user_id = argument[1] if isinstance(argument[1], int) else None
+                        if isinstance(argument, list):
+                            for i in range(0, len(argument), 2):
+                                if i+1 < len(argument):
+                                    key = str(argument[i]).lower()
+                                    val = argument[i+1]
+                                    if key == 'user':
+                                        self._current_user_id = int(val) if isinstance(val, int) or (isinstance(val, str) and val.isdigit()) else None
+                                    elif key == 'item':
+                                        current_item_id = int(val) if isinstance(val, int) or (isinstance(val, str) and val.isdigit()) else None
                     else:
                         if isinstance(argument, str):
-                            parts = argument.split(',')
-                            if len(parts) >= 2 and parts[0].strip().lower() == 'user':
-                                try:
-                                    self._current_user_id = int(parts[1].strip())
-                                except:
-                                    self._current_user_id = None
+                            parts = [p.strip() for p in argument.split(',')]
+                            for i in range(0, len(parts), 2):
+                                if i+1 < len(parts):
+                                    key = parts[i].lower()
+                                    val = parts[i+1]
+                                    if key == 'user':
+                                        try:
+                                            self._current_user_id = int(val)
+                                        except:
+                                            self._current_user_id = None
+                                    elif key == 'item':
+                                        try:
+                                            current_item_id = int(val)
+                                        except:
+                                            current_item_id = None
 
                     self.log(f':violet[Calling] :red[Analyst] :violet[with] :blue[{argument}]:violet[...]', agent=self.manager, logging=False)
                     observation = self.analyst.invoke(argument=argument, json_mode=self.manager.json_mode)
+                    
+                    # NEW: Auto-inject item info for Rating Prediction tasks
+                    if current_item_id is not None:
+                        try:
+                            if hasattr(self.analyst, 'info_retriever'):
+                                # 1. Inject Target Item Info
+                                item_info = self.analyst.info_retriever.item_info(item_id=current_item_id)
+                                observation += f"\n\n[Expected Movie Analysis Data]\n{item_info}"
+                                logger.info(f"Injected info for item {current_item_id} into Analyst observation")
+                                
+                                # 2. Inject History Items Info (to replace IDs in User Analysis)
+                                import re
+                                # Find all numbers in the observation that look like item IDs (simple heuristic: 1-5 digits)
+                                # Exclude the user_id itself to avoid fetching user info as item
+                                all_ids = set(map(int, re.findall(r'\b\d{1,5}\b', observation)))
+                                if self._current_user_id in all_ids:
+                                    all_ids.remove(self._current_user_id)
+                                if current_item_id in all_ids:
+                                    all_ids.remove(current_item_id)
+                                    
+                                if all_ids:
+                                    history_info = []
+                                    count = 0
+                                    for hid in all_ids:
+                                        if count > 10: break # Limit to avoid request explosion
+                                        try:
+                                            h_info = self.analyst.info_retriever.item_info(item_id=hid)
+                                            # Extract just title to save token space
+                                            title_match = re.search(r'Title:\s*(.+?),', h_info)
+                                            title = title_match.group(1) if title_match else h_info
+                                            history_info.append(f"Item {hid}: {title}")
+                                            count += 1
+                                        except:
+                                            pass
+                                            
+                                    if history_info:
+                                        observation += "\n\n[Reference Data - History Item Names]\n" + "\n".join(history_info)
+
+                        except Exception as e:
+                            logger.warning(f"Failed to inject item info: {e}")
+                            
                     log_head = f':violet[Response from] :red[Analyst] :violet[with] :blue[{argument}]:violet[:]\n- '
                     self._analyse_performed = True
         elif action_type.lower() == 'search':
@@ -947,8 +1005,20 @@ IMPORTANT: Only describe movies from the list above. If a movie is not in the li
         # If response looks like movie recommendations, make it part 2
         if "recommendations" in response.lower() or "here are" in response.lower() or response.strip().startswith("1."):
             formatted_response += f"2. **5 MOVIE RECOMMENDATIONS**:\n{response}\n\n"
-            formatted_response += "3. **SELECTION CRITERIA**: These 5 movies selected for highest ratings from 30 recommendations and matching user preferences identified by Analyst.\n\n"
-            formatted_response += "4. **FRIENDLY CLOSING**: Enjoy your movie watching experience!"
+            # Generate dynamic Criteria and Closing using LLM
+            # (Remove hardcoded strings)
+            closing_prompt = f"""Based on these user preferences: "{analyst_summary}"
+and these recommended movies:
+{response}
+
+Generate 2 short sections in this EXACT format:
+3. **SELECTION CRITERIA**: [Explain in 1 sentence why these specific movies were selected matching the preferences, AND mention general viewer reviews/sentiment]
+4. **FRIENDLY CLOSING**: [A short, engaging closing sentence in Vietnamese]
+
+Do NOT generate parts 1 or 2 again. Only generate parts 3 and 4."""
+            
+            criteria_and_closing = self.manager.thought_llm(closing_prompt)
+            formatted_response += "\n\n" + criteria_and_closing
         else:
             # For other types of responses, just add the summary
             formatted_response += response
