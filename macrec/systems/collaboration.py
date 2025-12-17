@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Any, Optional
 from loguru import logger
 
@@ -103,14 +104,31 @@ class CollaborationSystem(System):
         if not text:
             return False
         text_lower = text.lower()
+        
+        # EXCLUSION: If the text is asking for clarification or stating input is meaningless, it's NOT a database task
+        clarification_keywords = [
+            'không có nghĩa', 'meaningless', 'rõ ràng hơn', 'clearer', 
+            'cụ thể hơn', 'specific', 'nhập lại', 're-enter',
+            'không hiểu', 'don\'t understand', 'xin chào', 'hello', 'hi'
+        ]
+        if any(k in text_lower for k in clarification_keywords):
+            return False
+            
         db_keywords = [
             # Explicit query intent
             'database', 'bảng', 'table', 'truy vấn', 'query', 'sql',
             'select', 'top', 'liệt kê', 'tìm', 'find', 'search', 'kiếm',
-            'danh sách', 'list', 'thống kê', 'count', 'bao nhiêu', 'how many',
-            'những ai', 'who', 'cái gì', 'what', 'ở đâu', 'where',
+            'danh sách', 'list', 'thống kê', 'count',
             'tổng hợp', 'summary', 'lọc', 'filter', 'sắp xếp', 'sort',
-            'gợi ý', 'suggest', 'recommend', 'tiếp theo', 'next', 'tương tự', 'similar'
+            'gợi ý', 'suggest', 'recommend', 'tiếp theo', 'next', 'tương tự', 'similar',
+            
+            # Domain specific keywords (Movies/Recommendation)
+            'phim', 'movie', 'film', 'cinema',
+            'đạo diễn', 'director', 'diễn viên', 'actor', 'actress', 'cast',
+            'thể loại', 'genre', 'category',
+            'đánh giá', 'rating', 'review', 'score',
+            'người dùng', 'user', 'khách hàng', 'customer',
+            'sản phẩm', 'item', 'product'
         ]
         return any(keyword in text_lower for keyword in db_keywords)
     
@@ -139,6 +157,7 @@ class CollaborationSystem(System):
         self.step_n: int = 1
         self._search_performed: bool = False
         self._analyse_performed: bool = False
+        self._sequential_performed: bool = False
         self._is_database_task: bool = False
         self._candidates: list[int] = []
         self._current_user_id: Optional[int] = None
@@ -197,24 +216,40 @@ class CollaborationSystem(System):
             self.scratchpad += f'\nHint: {self.manager.hint}'
         
         # Strong reminder for database tasks
-        if self._is_database_task and not (self._search_performed or self._analyse_performed):
-            self.scratchpad += '\n⚠️ CRITICAL: This task requires querying the database or analyzing data. You MUST use Search[...] or Analyse[...] action first. You CANNOT Finish without searching or analyzing first.'
+        if self._is_database_task and not (self._search_performed or self._analyse_performed or getattr(self, '_sequential_performed', False)):
+            self.scratchpad += '\n⚠️ CRITICAL: This task requires querying the database or analyzing data. You MUST use Search[...] or Analyse[...] or Sequential[...] action first. You CANNOT Finish without searching or analyzing first.'
             
             # Specific hint for sequential recommendation
             task_prompt_lower = (self.manager_kwargs.get('task_prompt', '') + ' ' + self.manager_kwargs.get('input', '')).lower()
-            if any(k in task_prompt_lower for k in ['gợi ý', 'suggest', 'recommend', 'tiếp theo', 'next', 'tương tự', 'similar']):
+            sequential_keywords = ['tiếp theo', 'next', 'sequential', 'what next', 'what to watch next', 'next items']
+            
+            if any(k in task_prompt_lower for k in sequential_keywords):
+                # Extract user_id if present
+                import re
+                user_match = re.search(r'user[_\s]?(\d+)', task_prompt_lower)
+                if user_match:
+                    user_id = user_match.group(1)
+                    self.scratchpad += f'\n💡 HINT: This is a sequential recommendation query. You should call Sequential[{user_id}, K] (replace K with desired number) immediately.'
+                else:
+                    self.scratchpad += '\n💡 HINT: This is a sequential recommendation query. Call Sequential[user_id, K] immediately.'
+            elif any(k in task_prompt_lower for k in ['gợi ý', 'suggest', 'recommend', 'tương tự', 'similar']):
                  self.scratchpad += '\n💡 HINT: If the user mentions a specific item (movie, product), you should first Search for its ID (e.g., Search[What is the item_id of movie X?]), then use that ID to Analyse or Search for similar items.'
         
-        # NEW: Detect user_id in query and enforce Analyse
+        # NEW: Detect user_id in query and enforce Analyse, but skip for sequential recommendation queries
         import re
         combined_text = self.manager_kwargs.get('task_prompt', '') + ' ' + self.manager_kwargs.get('input', '')
         user_id_match = re.search(r'user[_\s]?(\d+)', combined_text, re.IGNORECASE)
-        if user_id_match and not self._analyse_performed:
+        
+        # Determine if this is a sequential recommendation request
+        sequential_keywords = ['tiếp theo', 'next', 'sequential', 'what next', 'what to watch next', 'next items']
+        is_sequential = any(k in combined_text.lower() for k in sequential_keywords)
+        
+        if user_id_match and not self._analyse_performed and not getattr(self, '_sequential_performed', False) and not is_sequential:
             user_id = user_id_match.group(1)
             self.scratchpad += f'\n🚨 MANDATORY: Query mentions user_{user_id}. You MUST call Analyse[user, {user_id}] FIRST to get their profile and history before making any recommendations. This is NOT optional.'
         
         # Check if previous thought mentioned Search but haven't searched yet
-        if self.require_search_before_finish and not (self._search_performed or self._analyse_performed):
+        if self.require_search_before_finish and not (self._search_performed or self._analyse_performed or getattr(self, '_sequential_performed', False)):
             last_thought = self.scratchpad.split('Thought')[-1].split('Action')[0].lower() if 'Thought' in self.scratchpad else ''
             if 'search' in last_thought and 'finish' not in last_thought:
                 # Thought mentioned search, remind to use Search action
@@ -258,14 +293,21 @@ class CollaborationSystem(System):
                 recs = self._cf_results['detailed']
                 top_5 = recs[:5]
                 auto_response = f"Here are 5 movie recommendations for user {self._cf_results['user_id']}:\n" + "\n".join([f"{i+1}. {rec}" for i, rec in enumerate(top_5)])
-                logger.info(f"AUTO-FINISH: Manager didn't Finish, using CF results")
+                
+                # Add Summaries
+                auto_response += self._summarize_recommendations(auto_response)
+                
+                # Add Genre Analysis
+                auto_response += self._analyze_user_genres(self._cf_results['user_id'])
+                
+                logger.info("AUTO-FINISH: Manager didn't Finish, using CF results")
                 action = f"Finish[{auto_response}]"
         
         self.scratchpad += ' ' + action
         action_type, argument = parse_action(action, json_mode=self.manager.json_mode)
         
         # Auto-convert Finish to Search for database tasks
-        if action_type.lower() == 'finish' and self._is_database_task and not (self._search_performed or self._analyse_performed):
+        if action_type.lower() == 'finish' and self._is_database_task and not (self._search_performed or self._analyse_performed or getattr(self, '_sequential_performed', False)):
             logger.warning(f'Auto-converting Finish to Search for database task. Original: {action}')
             # Generate a suggested SQL query based on task
             task_prompt = self.manager_kwargs.get('task_prompt', '')
@@ -299,7 +341,7 @@ class CollaborationSystem(System):
             # UPDATED CHECK: For database tasks, we need EITHER search OR CF results
             has_cf_results = hasattr(self, '_cf_results') and self._cf_results is not None
             
-            if self._is_database_task and not self._search_performed and not has_cf_results:
+            if self._is_database_task and not self._search_performed and not has_cf_results and not getattr(self, '_sequential_performed', False):
                  # Provide helpful guidance when Finish is blocked
                 task_prompt = self.manager_kwargs.get('task_prompt', '')
                 input_text = self.manager_kwargs.get('input', '')
@@ -321,8 +363,10 @@ class CollaborationSystem(System):
                         'Analysis alone is not enough.'
                     )
                 log_head = ':violet[Finish blocked - must Search or CF first]:\n- '
-            elif self.require_search_before_finish and not (self._search_performed or self._analyse_performed):
-                # Legacy check for non-database tasks (if any)
+            elif self.require_search_before_finish and self._is_database_task and not (self._search_performed or self._analyse_performed or getattr(self, '_sequential_performed', False)):
+                # Legacy check - now only applied if we detected it IS a database task but missed the first check for some reason
+                # or if we want to be extra safe. 
+                # Ideally, for non-database tasks (chit-chat), we should ALLOW Finish.
                 observation = 'Finish action blocked: you must call Search[...] or Analyse[...] at least once before finishing.'
                 log_head = ':violet[Finish blocked - must Search/Analyse first]:\n- '
             else:
@@ -348,36 +392,31 @@ class CollaborationSystem(System):
                                 argument = ','.join(map(str, top_5_ids))
                                 logger.info(f"Smart Finish: Using search candidates for generic recommendation: {argument}")
                                 self.scratchpad += f'\n✅ AUTO-ENHANCED: Using top 5 items from Search results: {argument}'
+                                
+                                # Add Summaries (Generic)
+                                # Get titles first
+                                item_texts = []
+                                for item_id in top_5_ids:
+                                    if self.analyst and hasattr(self.analyst, 'info_retriever'):
+                                        item_texts.append(self.analyst.info_retriever.item_info(item_id=item_id))
+                                summaries = self._summarize_recommendations("\n".join(item_texts))
+                                argument += summaries
                 
-                # NEW: Smart Finish for personalized recommendations when Manager fails to Finish properly
-                # If we have search results and Manager output is invalid/empty, use search candidates
-                if (self._search_performed and 
-                    hasattr(self, '_candidates') and 
-                    len(self._candidates) >= 5):
-                    
-                    # Check if argument is invalid or empty
-                    if isinstance(argument, str):
-                        import re
-                        arg_ids = re.findall(r'\d+', argument)
-                        
-                        # If argument has no IDs or very few, use our candidates
-                        if len(arg_ids) < 5:
-                            # Use top 5 from candidates
-                            top_5_ids = self._candidates[:5]
-                            # Get item details
-                            item_details = []
-                            for item_id in top_5_ids:
-                                item_info = self.searcher.info_retriever.item_info(item_id=item_id)
-                                item_details.append(f"{item_id}: {item_info}")
-                            
-                            argument = f"Here are 5 movie recommendations:\n" + "\n".join([f"{i+1}. {detail}" for i, detail in enumerate(item_details)])
-                            logger.info(f"Smart Finish: Using search candidates for personalized recommendation")
-                            self.scratchpad += f'\n✅ AUTO-ENHANCED: Using top 5 items from Search results'
+                # DISABLED: Smart Finish logic conflicts with Manager's strict 4-part format
+                # Manager now handles all recommendation formatting
                 
                 parse_result = self._parse_answer(argument)
                 if parse_result['valid']:
-                    observation = self.finish(parse_result['answer'])
-                    log_head = ':violet[Finish with answer]:\n- '
+                    enhanced_answer = parse_result['answer']
+
+                    # Ensure Manager response includes user preference summary based on Analyst findings
+                    if self._should_add_user_summary(enhanced_answer):
+                        analyst_summary = self._extract_analyst_findings()
+                        if analyst_summary:
+                            enhanced_answer = self._add_user_preference_summary(enhanced_answer, analyst_summary)
+
+                    observation = self.finish(enhanced_answer)
+                    log_head = ':violet[Finish with enhanced answer]:\n- '
                 else:
                     assert "message" in parse_result, "Invalid parse result."
                     observation = f'{parse_result["message"]} Valid Action examples are {self.manager.valid_action_example}.'
@@ -403,22 +442,80 @@ class CollaborationSystem(System):
                     observation = 'Analyst[user] blocked: This is a GENERIC recommendation without user context. You cannot analyze a user without a specific user_id. For generic "best" recommendations, use Search results directly and call Finish.'
                     log_head = ':violet[Analyst blocked - generic query]:\n- '
                 else:
-                    # Extract user_id from argument for personalization
+                    # Extract user_id and item_id from argument
+                    current_item_id = None
+                    
                     if self.manager.json_mode:
-                        if isinstance(argument, list) and len(argument) >= 2:
-                            if argument[0].lower() == 'user':
-                                self._current_user_id = argument[1] if isinstance(argument[1], int) else None
+                        if isinstance(argument, list):
+                            for i in range(0, len(argument), 2):
+                                if i+1 < len(argument):
+                                    key = str(argument[i]).lower()
+                                    val = argument[i+1]
+                                    if key == 'user':
+                                        self._current_user_id = int(val) if isinstance(val, int) or (isinstance(val, str) and val.isdigit()) else None
+                                    elif key == 'item':
+                                        current_item_id = int(val) if isinstance(val, int) or (isinstance(val, str) and val.isdigit()) else None
                     else:
                         if isinstance(argument, str):
-                            parts = argument.split(',')
-                            if len(parts) >= 2 and parts[0].strip().lower() == 'user':
-                                try:
-                                    self._current_user_id = int(parts[1].strip())
-                                except:
-                                    self._current_user_id = None
+                            parts = [p.strip() for p in argument.split(',')]
+                            for i in range(0, len(parts), 2):
+                                if i+1 < len(parts):
+                                    key = parts[i].lower()
+                                    val = parts[i+1]
+                                    if key == 'user':
+                                        try:
+                                            self._current_user_id = int(val)
+                                        except:
+                                            self._current_user_id = None
+                                    elif key == 'item':
+                                        try:
+                                            current_item_id = int(val)
+                                        except:
+                                            current_item_id = None
 
                     self.log(f':violet[Calling] :red[Analyst] :violet[with] :blue[{argument}]:violet[...]', agent=self.manager, logging=False)
                     observation = self.analyst.invoke(argument=argument, json_mode=self.manager.json_mode)
+                    
+                    # NEW: Auto-inject item info for Rating Prediction tasks
+                    if current_item_id is not None:
+                        try:
+                            if hasattr(self.analyst, 'info_retriever'):
+                                # 1. Inject Target Item Info
+                                item_info = self.analyst.info_retriever.item_info(item_id=current_item_id)
+                                observation += f"\n\n[Expected Movie Analysis Data]\n{item_info}"
+                                logger.info(f"Injected info for item {current_item_id} into Analyst observation")
+                                
+                                # 2. Inject History Items Info (to replace IDs in User Analysis)
+                                import re
+                                # Find all numbers in the observation that look like item IDs (simple heuristic: 1-5 digits)
+                                # Exclude the user_id itself to avoid fetching user info as item
+                                all_ids = set(map(int, re.findall(r'\b\d{1,5}\b', observation)))
+                                if self._current_user_id in all_ids:
+                                    all_ids.remove(self._current_user_id)
+                                if current_item_id in all_ids:
+                                    all_ids.remove(current_item_id)
+                                    
+                                if all_ids:
+                                    history_info = []
+                                    count = 0
+                                    for hid in all_ids:
+                                        if count > 10: break # Limit to avoid request explosion
+                                        try:
+                                            h_info = self.analyst.info_retriever.item_info(item_id=hid)
+                                            # Extract just title to save token space
+                                            title_match = re.search(r'Title:\s*(.+?),', h_info)
+                                            title = title_match.group(1) if title_match else h_info
+                                            history_info.append(f"Item {hid}: {title}")
+                                            count += 1
+                                        except:
+                                            pass
+                                            
+                                    if history_info:
+                                        observation += "\n\n[Reference Data - History Item Names]\n" + "\n".join(history_info)
+
+                        except Exception as e:
+                            logger.warning(f"Failed to inject item info: {e}")
+                            
                     log_head = f':violet[Response from] :red[Analyst] :violet[with] :blue[{argument}]:violet[:]\n- '
                     self._analyse_performed = True
         elif action_type.lower() == 'search':
@@ -521,6 +618,7 @@ class CollaborationSystem(System):
                                 item_info = self.collaborative_filtering_agent.info_retriever.item_info(item_id=item_id)
                                 detailed_recs.append(f"{item_id}: {item_info} (score: {score:.2f})")
                             observation = f"CF Recommendations for User {user_id} (top {top_k}):\n" + "\n".join(detailed_recs)
+                            # Note: We don't add summary/analysis here yet, we wait for Finish action (or Auto-Finish)
                             
                             # Store CF results for potential auto-finish
                             self._cf_results = {
@@ -546,7 +644,7 @@ class CollaborationSystem(System):
                 self.log(f':violet[Calling] :red[SequentialRecommendationAgent] :violet[with] :blue[{argument}]:violet[...]', agent=self.manager, logging=False)
                 observation = self.sequential_recommendation_agent.invoke(argument=argument, json_mode=self.manager.json_mode)
                 log_head = f':violet[Response from] :red[SequentialRecommendationAgent] :violet[with] :blue[{argument}]:violet[:]\n- '
-                self._analyse_performed = True
+                self._sequential_performed = True
         elif action_type.lower() == 'synthesize':
             if self.synthesizer_agent is None:
                 observation = 'SynthesizerAgent is not configured. Cannot execute the action "Synthesize".'
@@ -648,13 +746,24 @@ class CollaborationSystem(System):
         Execute the sequential flow:
         User -> Interpreter -> Manager -> Searcher -> Analyst -> Reflector -> Interpreter -> User
         """
-        self.reset(clear=True)
+        # Only clear history if NOT chat task
+        is_chat = self.task == 'chat'
+        self.reset(clear=not is_chat)
+        
+        # Add user input to history if chat
+        if is_chat:
+            self.add_chat_history(user_input, role='user')
+            
         self.input = user_input
         
         # 1. Interpreter (NLU)
         # Use Interpreter to understand the query and generate a task prompt
         if self.interpreter:
-            task_prompt = self.interpreter(input=user_input)
+            if is_chat:
+                # Use history for context in chat mode
+                task_prompt = self.interpreter(input=self.chat_history)
+            else:
+                task_prompt = self.interpreter(input=user_input)
         else:
             task_prompt = user_input
             
@@ -696,15 +805,20 @@ class CollaborationSystem(System):
             # Generate final response
             if self.interpreter:
                 final_response = self.interpreter.invoke(argument=f"Query: {user_input}\nContext: {ranked_result}", json_mode=False)
-                return final_response
             else:
-                return str(ranked_result)
+                final_response = str(ranked_result)
         else:
             # Chat/Explain Flow
             if self.interpreter:
-                return self.interpreter.invoke(argument=user_input, json_mode=False)
+                final_response = self.interpreter.invoke(argument=user_input, json_mode=False)
             else:
-                return "Interpreter not configured for chat."
+                final_response = "Interpreter not configured for chat."
+        
+        # Add system response to history if chat
+        if is_chat:
+            self.add_chat_history(final_response, role='system')
+            
+        return final_response
 
     def forward(self, user_input: Optional[str] = None, reset: bool = True) -> Any:
         if self.flow_type == 'sequential' and user_input is not None:
@@ -739,5 +853,362 @@ class CollaborationSystem(System):
             user_input = input("You: ")
             if user_input.lower() in ['exit', 'quit']:
                 break
-            response = self(user_input=user_input, reset=True)
-            print(f"System: {response}")
+    def _summarize_recommendations(self, recommendations: str) -> str:
+        """
+        Generate detailed descriptions for recommended movies using the Manager LLM.
+        """
+        if not recommendations or recommendations.strip() == "":
+            return ""
+
+        # Validate that we only describe movies that are actually in the recommendations
+        valid_movies = []
+        for line in recommendations.split('\n'):
+            line = line.strip()
+            if line and not line.startswith('Movie:'):
+                # Extract movie title from patterns like "Title (Year)" or just "Title"
+                title_match = re.search(r'^([^(]+)', line)
+                if title_match:
+                    title = title_match.group(1).strip()
+                    # Skip generic titles that might be hallucinations
+                    if title.lower() not in ['copycat', 'movie', 'film', 'the movie']:
+                        valid_movies.append(line)
+
+        if not valid_movies:
+            return ""
+
+        clean_recommendations = '\n'.join(valid_movies[:5])  # Limit to 5 movies max
+
+        prompt = f"""ONLY describe the movies listed below. DO NOT describe any other movies or invent new ones.
+
+For EACH movie in this EXACT list, provide a DETAILED description:
+
+1. **Plot Summary**: 2-3 sentences describing the main story and key events
+2. **Genre**: Main genre and any sub-genres
+3. **Key Cast**: Main actors/actresses and director if mentioned
+4. **Why Recommended**: Why this movie would appeal to the user
+5. **Notable Info**: Awards, critical reception, cultural impact, or interesting facts
+
+Format each movie as a separate paragraph with clear headings. Make descriptions engaging and informative. Use natural, conversational language.
+
+MOVIES TO DESCRIBE (ONLY THESE - DO NOT ADD OTHERS):
+{clean_recommendations}
+
+IMPORTANT: Only describe movies from the list above. If a movie is not in the list, do NOT describe it."""
+
+        # Use Manager's thought LLM directly to generate descriptions
+        summary = self.manager.thought_llm(prompt)
+
+        # Additional validation: remove any descriptions not in our valid list
+        validated_summary = self._validate_movie_summaries(summary, valid_movies)
+
+        return f"\n\n🎬 **Chi tiết phim gợi ý:**\n{validated_summary}"
+
+    def _should_add_user_summary(self, response: str) -> bool:
+        """Check if response needs user preference summary added."""
+        if not response:
+            return False
+
+        # Check if response already has user preference summary
+        if "**USER PREFERENCE SUMMARY**" in response or "USER PREFERENCE SUMMARY" in response:
+            return False
+
+        # Check if this is a movie recommendation response
+        response_lower = response.lower()
+        return ("recommend" in response_lower or "gợi ý" in response_lower) and "movie" in response_lower
+
+    def _extract_analyst_findings(self) -> str:
+        """Extract user preferences from the most recent Analyst response."""
+        if not hasattr(self, 'scratchpad') or not self.scratchpad:
+            return ""
+
+        # Find the last Analyst response in scratchpad
+        lines = self.scratchpad.split('\n')
+        analyst_response = ""
+
+        for i, line in enumerate(reversed(lines)):
+            if "Response from Analyst" in line:
+                # Extract the Analyst response (next few lines)
+                start_idx = len(lines) - i - 1
+                for j in range(start_idx + 1, len(lines)):
+                    if lines[j].strip() and not lines[j].startswith("👩‍💼Manager:"):
+                        analyst_response += lines[j] + " "
+                    elif lines[j].startswith("👩‍💼Manager:"):
+                        break
+                break
+
+        if not analyst_response.strip():
+            return ""
+
+        # Extract key information from Analyst response
+        analyst_lower = analyst_response.lower()
+
+        # Try to find specific patterns in Analyst response
+        preferences = []
+
+        # Extract genres mentioned
+        genres = []
+        if "drama" in analyst_lower:
+            genres.append("Drama")
+        if "action" in analyst_lower:
+            genres.append("Action")
+        if "comedy" in analyst_lower:
+            genres.append("Comedy")
+        if "thriller" in analyst_lower:
+            genres.append("Thriller")
+
+        # Extract quality indicators
+        quality_indicators = []
+        if "high-quality" in analyst_lower or "quality" in analyst_lower:
+            quality_indicators.append("high-quality content")
+        if "engaging" in analyst_lower:
+            quality_indicators.append("engaging narratives")
+        if "emotional" in analyst_lower or "emotion" in analyst_lower:
+            quality_indicators.append("emotionally resonant stories")
+        if "character development" in analyst_lower or "character" in analyst_lower:
+            quality_indicators.append("strong character development")
+
+        # Build preference summary
+        summary_parts = []
+
+        if genres:
+            summary_parts.append(f"films in {', '.join(genres)} genres")
+
+        if quality_indicators:
+            summary_parts.extend(quality_indicators)
+
+        if summary_parts:
+            preference_str = ", ".join(summary_parts)
+            return f"Based on Analyst analysis, user prefers {preference_str}."
+        else:
+            # Fallback: try to extract meaningful sentences from Analyst response
+            sentences = analyst_response.split('.')
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if sentence and ('prefers' in sentence.lower() or 'likes' in sentence.lower() or 'enjoys' in sentence.lower()):
+                    return f"Based on Analyst analysis: {sentence}"
+
+            return "Based on Analyst analysis, user prefers high-quality films with engaging content."
+
+    def _add_user_preference_summary(self, response: str, analyst_summary: str) -> str:
+        """Add user preference summary to the beginning of response in proper format."""
+        if not response or not analyst_summary:
+            return response
+
+        # If response already has proper structure, don't modify
+        if "**USER PREFERENCE SUMMARY**" in response:
+            return response
+
+        # Add user preference summary as the first part
+        # Format the entire response properly
+        formatted_response = f"1. **USER PREFERENCE SUMMARY**: {analyst_summary}\n\n"
+
+        # If response looks like movie recommendations, make it part 2
+        if "recommendations" in response.lower() or "here are" in response.lower() or response.strip().startswith("1."):
+            formatted_response += f"2. **5 MOVIE RECOMMENDATIONS**:\n{response}\n\n"
+            # Generate dynamic Criteria and Closing using LLM
+            # (Remove hardcoded strings)
+            closing_prompt = f"""Based on these user preferences: "{analyst_summary}"
+and these recommended movies:
+{response}
+
+Generate 2 short sections in this EXACT format:
+3. **SELECTION CRITERIA**: [Explain in 1 sentence why these specific movies were selected matching the preferences, AND mention general viewer reviews/sentiment]
+4. **FRIENDLY CLOSING**: [A short, engaging closing sentence in Vietnamese]
+
+Do NOT generate parts 1 or 2 again. Only generate parts 3 and 4."""
+            
+            criteria_and_closing = self.manager.thought_llm(closing_prompt)
+            formatted_response += "\n\n" + criteria_and_closing
+        else:
+            # For other types of responses, just add the summary
+            formatted_response += response
+
+        return formatted_response
+
+    def _validate_movie_summaries(self, summary: str, valid_movies: list) -> str:
+        """Validate that summary only contains descriptions for valid movies."""
+        if not summary or not valid_movies:
+            return ""
+
+        # Extract valid movie titles
+        valid_titles = set()
+        for movie in valid_movies:
+            title_match = re.search(r'^([^(]+)', movie.strip())
+            if title_match:
+                title = title_match.group(1).strip().lower()
+                valid_titles.add(title)
+
+        # Filter summary to only include valid movies
+        lines = summary.split('\n')
+        filtered_lines = []
+        current_movie_valid = False
+
+        for line in lines:
+            line_lower = line.lower().strip()
+            # Check if this line starts a new movie description
+            if any(title in line_lower for title in valid_titles):
+                current_movie_valid = True
+                filtered_lines.append(line)
+            elif line.strip() == "" or line.startswith('**') or line.startswith('*'):
+                # Keep formatting and empty lines
+                if current_movie_valid:
+                    filtered_lines.append(line)
+            elif current_movie_valid:
+                filtered_lines.append(line)
+            else:
+                # Skip lines that don't belong to valid movies
+                continue
+
+        return '\n'.join(filtered_lines)
+
+    def _contains_movie_recommendations(self, text: str) -> bool:
+        """Check if the response contains movie recommendations."""
+        if not text:
+            return False
+
+        text_lower = text.lower()
+        movie_keywords = [
+            'phim', 'movie', 'film', 'cinema',
+            'gợi ý', 'recommend', 'suggest',
+            'xem', 'watch', 'nên xem', 'hay'
+        ]
+
+        # Check for movie-related keywords
+        has_movie_keywords = any(keyword in text_lower for keyword in movie_keywords)
+
+        # Check for item IDs (common in recommendations)
+        import re
+        has_item_ids = bool(re.search(r'\b\d{1,4}\b', text))
+
+        return has_movie_keywords or has_item_ids
+
+    def _is_personalized_recommendation(self, text: str) -> bool:
+        """Check if this is a personalized recommendation for a specific user."""
+        if not text:
+            return False
+
+        # Check for user-specific indicators
+        personalized_indicators = [
+            'user', 'người dùng', 'dựa trên sở thích',
+            'based on your preferences', 'for user',
+            'theo sở thích của bạn', 'phù hợp với bạn'
+        ]
+
+        text_lower = text.lower()
+        return any(indicator in text_lower for indicator in personalized_indicators)
+
+    def _extract_recommended_movies_from_response(self, response: str) -> str:
+        """Extract information only for movies that are actually recommended in the response."""
+        if not response:
+            return ""
+
+        # Parse the response to find only the recommended movies
+        # Look for numbered lists like "1. Movie Name" or similar patterns
+        import re
+
+        # Find movie entries in numbered lists
+        movie_entries = []
+        lines = response.split('\n')
+
+        for line in lines:
+            line = line.strip()
+            # Match patterns like "1. Movie Name (year) - genre - description"
+            if re.match(r'^\d+\.\s+.+', line):
+                movie_entries.append(line)
+
+        if movie_entries:
+            # Extract movie titles and basic info from the entries
+            movie_titles = []
+            for entry in movie_entries[:5]:  # Limit to 5
+                # Try to extract the movie title
+                title_match = re.search(r'\d+\.\s+([^(]+)', entry)
+                if title_match:
+                    title = title_match.group(1).strip()
+                    movie_titles.append(title)
+
+            # If we have movie titles, try to get their info from database
+            if movie_titles and self.analyst and hasattr(self.analyst, 'info_retriever'):
+                movie_infos = []
+                for title in movie_titles:
+                    try:
+                        # Search for the movie by title (this might need improvement)
+                        # For now, we'll use a simpler approach
+                        movie_infos.append(f"Movie: {title}")
+                    except:
+                        continue
+                return "\n".join(movie_infos)
+
+        # Fallback: extract all item IDs mentioned
+        item_ids = re.findall(r'\b(\d{1,4})\b', response)
+        if item_ids and self.analyst and hasattr(self.analyst, 'info_retriever'):
+            movie_infos = []
+            for item_id in item_ids[:5]:
+                try:
+                    info = self.analyst.info_retriever.item_info(item_id=int(item_id))
+                    movie_infos.append(info)
+                except:
+                    continue
+            return "\n".join(movie_infos)
+
+        return ""
+
+    def _extract_movie_info_from_response(self, response: str) -> str:
+        """Extract movie information from Manager's response for summarization (legacy method)."""
+        return self._extract_recommended_movies_from_response(response)
+
+    def _analyze_user_genres(self, user_id: int) -> str:
+        """
+        Analyze user's preferred genres based on their history using InfoDatabase and Manager LLM.
+        """
+        try:
+            # 1. Get user history
+            retriever = None
+            if self.analyst and hasattr(self.analyst, 'interaction_retriever'):
+                retriever = self.analyst.interaction_retriever
+            elif 'Analyst' in self.agents:
+                retriever = self.agents['Analyst'].interaction_retriever
+            
+            if not retriever:
+                return ""
+                
+            # Use user_retrieve_data to get list of (item_id, rating, timestamp)
+            try:
+                # k=10 items
+                history_data = retriever.user_retrieve_data(user_id=user_id, k=10)
+            except Exception:
+                # Fallback if user_retrieve_data not available or fails
+                return ""
+            
+            if not history_data:
+                return ""
+
+            # 2. Resolve items to details (Title, Genre)
+            history_details = []
+            info_retriever = None
+            if self.analyst and hasattr(self.analyst, 'info_retriever'):
+                info_retriever = self.analyst.info_retriever
+            elif 'Analyst' in self.agents:
+                info_retriever = self.agents['Analyst'].info_retriever
+                
+            for item_id, rating, _ in history_data:
+                if info_retriever:
+                    # info string usually looks like "Item X Attributes: Title: ...; Genres: ..."
+                    info = info_retriever.item_info(item_id=item_id)
+                    history_details.append(f"- Movie: {info} (User Rating: {rating})")
+                else:
+                    history_details.append(f"- Item ID: {item_id} (User Rating: {rating})")
+
+            history_str = "\n".join(history_details)
+            
+            # 3. Ask LLM to analyze
+            prompt = (
+                f"Based on the following movies the user watched and rated:\n{history_str}\n\n"
+                "Please identify the user's preferred genres and explain briefly why you think so based on the content (plot/themes) of these movies. "
+                "Keep it concise (2-3 sentences)."
+            )
+            analysis = self.manager.thought_llm(prompt)
+            return f"\n\n**User Taste Analysis**:\n{analysis}"
+        except Exception as e:
+            logger.error(f"Error analyzing user genres: {e}")
+            return ""
+

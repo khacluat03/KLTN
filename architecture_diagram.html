@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Architecture - Multi-Agent Recommendation</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .mermaid-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 1200px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Multi-Agent Recommendation System Architecture</h1>
+
+    <div class="mermaid-container">
+        <div class="mermaid">
+            %% Main Graph
+            graph TD
+            %% Style Definitions
+            classDef agent fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:black;
+            classDef tool fill:#fff3e0,stroke:#e65100,stroke-width:1px,color:black;
+            classDef model fill:#e8f5e9,stroke:#1b5e20,stroke-width:1px,stroke-dasharray: 5 5,color:black;
+            classDef user fill:#ffebee,stroke:#c62828,stroke-width:2px,color:black;
+
+            %% Central Interaction
+            User((👤 User)):::user
+            Interpreter[🗣️ Interpreter Agent]:::agent
+            Manager[🧠 Manager Agent]:::agent
+            Reflector[🤔 Reflector Agent]:::agent
+
+            %% Main Flow
+            User ==>|Input| Interpreter
+            Interpreter ==>|Task Prompt| Manager
+            Manager -.->|Draft| Reflector
+            Reflector -.->|Feedback| Manager
+
+            %% Search Cluster
+            subgraph Search_System [🔍 Search System]
+            direction TB
+            Searcher[🔍 Searcher Agent]:::agent
+
+            subgraph S_Tools [Tools]
+            direction LR
+            SQL[🗄️ SQL]:::tool
+            Wiki[🌐 Wiki]:::tool
+            CF[🤝 CF]:::tool
+            end
+
+            subgraph S_Models [Models]
+            direction LR
+            LLM(🤖 LLM-RAG):::model
+            ItemKNN(📉 ItemKNN):::model
+            end
+
+            Searcher -.-> SQL & Wiki & CF
+            SQL -.-> LLM
+            CF -.-> ItemKNN
+            end
+
+            %% Analysis Cluster
+            subgraph Analysis_System [📊 Analysis System]
+            direction TB
+            Analyst[📊 Analyst Agent]:::agent
+
+            subgraph A_Tools [Tools]
+            direction LR
+            History[📜 History]:::tool
+            Info[ℹ️ Info]:::tool
+            Rating[⭐ Rating]:::tool
+            Seq[🔄 Seq]:::tool
+            end
+
+            subgraph A_Models [Models]
+            direction LR
+            UserKNN(👥 UserKNN):::model
+            SASRec(🧠 SASRec):::model
+            end
+
+            Analyst -.-> History & Info & Rating & Seq
+            Rating -.-> UserKNN
+            Seq -.-> SASRec
+            end
+
+            %% Connections to Manager
+            Manager ==>|1. Search| Searcher
+            Manager ==>|1. Analyse| Analyst
+            Searcher -->|2. Details| Manager
+            Analyst -->|2. Candidates| Manager
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            themeVariables: {
+                fontFamily: 'Segoe UI'
+            }
+        });
+    </script>
+
+</body>
+
+</html>

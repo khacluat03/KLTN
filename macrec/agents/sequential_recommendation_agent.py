@@ -103,7 +103,7 @@ class SequentialRecommendationAgent(ToolAgent):
         log_head = ''
         action_type, argument = parse_action(command, json_mode=self.json_mode)
 
-        if action_type.lower() == 'predict_next' or action_type.lower() == 'sequential':
+        if action_type.lower() in ['predict_next', 'predictnext', 'sequential']:
             # Sequential prediction - predict next items
             try:
                 if self.json_mode:
@@ -133,7 +133,7 @@ class SequentialRecommendationAgent(ToolAgent):
             except (ValueError, KeyError, IndexError) as e:
                 observation = f"Invalid argument for sequential prediction: {argument}. Error: {e}"
 
-        elif action_type.lower() == 'user_history':
+        elif action_type.lower() in ['user_history', 'userhistory']:
             # Get detailed user interaction history for sequential analysis
             try:
                 if self.json_mode:
@@ -145,7 +145,7 @@ class SequentialRecommendationAgent(ToolAgent):
                     limit = int(parts[1].strip()) if len(parts) > 1 else 20
 
                 # Get recent user history
-                history_data = self.interaction_retriever.user_retrieve(user_id=user_id, k=limit)
+                history_data = self.interaction_retriever.user_retrieve_data(user_id=user_id, k=limit)
 
                 # Format as chronological sequence
                 if history_data:
@@ -162,7 +162,7 @@ class SequentialRecommendationAgent(ToolAgent):
             except (ValueError, KeyError) as e:
                 observation = f"Invalid argument for user history: {argument}. Error: {e}"
 
-        elif action_type.lower() == 'pattern_analysis':
+        elif action_type.lower() in ['pattern_analysis', 'patternanalysis']:
             # Analyze user behavior patterns
             try:
                 if self.json_mode:
@@ -171,7 +171,7 @@ class SequentialRecommendationAgent(ToolAgent):
                     user_id = int(argument)
 
                 # Get user history and analyze patterns
-                history_data = self.interaction_retriever.user_retrieve(user_id=user_id, k=50)
+                history_data = self.interaction_retriever.user_retrieve_data(user_id=user_id, k=50)
 
                 if history_data:
                     # Simple pattern analysis

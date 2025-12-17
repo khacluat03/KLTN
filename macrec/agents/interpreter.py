@@ -42,9 +42,17 @@ class Interpreter(ToolAgent):
         else:
             return self.prompts['interpreter_examples']
 
+    @property
+    def interpreter_fewshot(self) -> str:
+        if self.json_mode:
+            return self.prompts.get('interpreter_fewshot_json', '')
+        else:
+            return self.prompts.get('interpreter_fewshot', '')
+
     def _build_interpreter_prompt(self, **kwargs) -> str:
         return self.interpreter_prompt.format(
             examples=self.interpreter_examples,
+            fewshot=self.interpreter_fewshot,
             history=self.history,
             **kwargs
         )

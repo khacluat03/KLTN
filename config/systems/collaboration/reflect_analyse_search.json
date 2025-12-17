@@ -21,9 +21,13 @@
         "Searcher": {
             "config_path": "config/agents/searcher.json",
             "prompt_config": "config/prompts/agent_prompt/searcher.json"
+        },
+        "SequentialRecommendationAgent": {
+            "config_path": "config/agents/sequential_recommendation_agent.json",
+            "prompt_config": "config/prompts/agent_prompt/sequential_recommendation.json"
         }
     },
-    "agent_prompt": "config/prompts/manager_prompt/reflect_analyse_search.json",
+    "agent_prompt": "config/prompts/manager_prompt/reflect_analyse_search_sequential.json",
     "data_prompt": "config/prompts/data_prompt/{task}.json",
     "max_step": 5
 }

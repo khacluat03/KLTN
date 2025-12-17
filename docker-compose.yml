@@ -7,10 +7,13 @@ services:
     volumes:
       - ./macrec:/app/macrec
       - ./web_demo.py:/app/web_demo.py
+      - ./scripts:/app/scripts
       - ./data:/app/data
       - ./config:/app/config
+      - ./saved_models:/app/saved_models
       - ./create_database.py:/app/create_database.py
       - ./saved_models:/app/saved_models
+      - ./training:/app/training
     environment:
       - PYTHONPATH=/app
       - DATASET=ml-100k
